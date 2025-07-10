@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 import app from "./src/app.js";
 
-const port = process.env.BACK_PORT || 8080;
+const port = process.env.BACK_PORT || 5000;
 
 mongoose
   .connect(process.env.MONGODB_URI)
