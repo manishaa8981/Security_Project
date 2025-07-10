@@ -1,0 +1,95 @@
+{
+  "_id": "67b1ebe1599aeaa3939438b7",
+  "name": "QFX NP",
+  "locations": [
+    {
+      "type": "HQ",
+      "location": "Kathmandu",
+      "coordinates": {
+        "latitude": 27.7172,
+        "longitude": 85.324
+      }
+    },
+    {
+      "type": "Branch",
+      "location": "Pokhara",
+      "coordinates": {
+        "latitude": 28.2096,
+        "longitude": 83.9856
+      }
+    }
+  ],
+  "contacts": [
+    {
+      "location": "Pokhara",
+      "phoneNumbers": [
+        {
+          "type": "Inquiry",
+          "number": "+977-9863484276",
+          "_id": "67b1ebe1599aeaa3939438b8"
+        },
+        {
+          "type": "Support",
+          "number": "+977-9860462378",
+          "_id": "67b1ebe1599aeaa3939438b9"
+        }
+      ],
+      "emails": [
+        {
+          "type": "Support",
+          "email": "support.pokhara@qfxmovies.com.np",
+          "_id": "67b1ebe1599aeaa3939438ba"
+        },
+        {
+          "type": "Inquiry",
+          "email": "inquiry.pokhara@qfxmovies.com.np",
+          "_id": "67b1ebe1599aeaa3939438bb"
+        }
+      ]
+    },
+    {
+      "location": "Kathmandu",
+      "phoneNumbers": [
+        {
+          "type": "Inquiry",
+          "number": "+977-9860452143",
+          "_id": "67b1ebe1599aeaa3939438bc"
+        },
+        {
+          "type": "Support",
+          "number": "+977-9860462449",
+          "_id": "67b1ebe1599aeaa3939438bd"
+        }
+      ],
+      "emails": [
+        {
+          "type": "Inquiry",
+          "email": "support.ktm@qfxmovies.com.np",
+          "_id": "67b1ebe1599aeaa3939438be"
+        },
+        {
+          "type": "Support",
+          "email": "support.ktm@qfxmovies.com.np",
+          "_id": "67b1ebe1599aeaa3939438bf"
+        }
+      ]
+    }
+  ],
+  "commissionRate": 10,
+  "distributionRights": [
+    {
+      "movieId": "67939270f2e9d7aab69ddc65",
+      "commissionRate": 15,
+      "territories": [
+        "Kathmandu",
+        "Pokhara"
+      ],
+      "validFrom": "2024-01-01T00:00:00.000Z",
+      "validUntil": "2024-12-31T00:00:00.000Z"
+    }
+  ],
+  "isActive": false,
+  "createdAt": "2025-02-16T13:45:05.393Z",
+  "updatedAt": "2025-02-16T13:45:05.393Z",
+  "__v": 0
+}

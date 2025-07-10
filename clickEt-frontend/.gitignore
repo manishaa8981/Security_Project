@@ -1,0 +1,59 @@
+# Node modules (dependencies)
+node_modules/
+
+# Vite build output (production builds)
+dist/
+
+# Logs
+logs/
+*.log
+*.log.*
+
+# Dependency directories
+pnpm-lock.yaml
+yarn.lock
+package-lock.json
+
+# Environment files
+.env
+.env.*.local
+.env.local
+
+# Vite cache
+.vite/
+
+# IDEs and editors
+.vscode/
+.idea/
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# NPM and Yarn related files
+.npm/
+.yarn/
+
+# Other common files
+*.tgz
+*.bak
+*.swp
+
+# Vite Dev server socket
+.vite-dev-server/
+
+# Optional: SvelteKit or other specific config files (if using those)
+.svelte-kit/
+
+# Optional: TypeScript build output (if you have a TypeScript project)
+*.tsbuildinfo
+
+# JetBrains project files (optional but useful)
+.idea/
+z
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/

@@ -1,0 +1,1829 @@
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+
+import {
+  Form,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage,
+} from "@/components/shadcn/form";
+import { Input } from "@/components/shadcn/input";
+import { Card, CardContent } from "@/components/shadcn/card";
+import { Button } from "@/components/shadcn/button";
+import { X } from "lucide-react";
+
+import LocationDialog from "@/components/pageComponents/distributor/distributorForm/LocationDialog";
+import DistributionRightsDialog from "./distributorRightsDialog";
+
+import { LocationFormData } from "@/lib/formSchemas/distributorFormSchema/locationSchemas";
+import {
+  DistributorFormData,
+  DistributorSchema,
+} from "@/lib/formSchemas/distributorFormSchema/basicDetailsSchema";
+import { DistributionRightFormData } from "@/lib/formSchemas/distributorFormSchema/rightsSchema";
+
+import {
+  useAddDistributor,
+  useDistributorLogoUpload,
+} from "@/api/distributorApi";
+import ImageUploader from "../../../common/ImageUploader";
+
+const DistributorForm = () => {
+  const [distributorData, setDistributorData] = useState<{
+    id: string | null;
+    distributorName: string | null;
+  }>({ id: null, distributorName: null });
+  const [locationData, setLocationData] = useState<LocationFormData>({
+    locations: [],
+    contacts: {
+      phoneNumbers: [],
+      emails: [],
+    },
+  });
+  const [distributionRights, setDistributionRights] = useState<
+    DistributionRightFormData[]
+  >([]);
+  const [showImageUpload, setShowImageUpload] = useState<boolean>(false);
+  const { mutate: uploadDistributorLogo, isPending } =
+    useDistributorLogoUpload();
+
+  const form = useForm<DistributorFormData>({
+    resolver: zodResolver(DistributorSchema),
+    defaultValues: {
+      name: "",
+      commissionRate: 0,
+      isActive: false,
+    },
+  });
+
+  const { mutate: addDistributorMutation } = useAddDistributor();
+
+  const onSubmit = (data: DistributorFormData) => {
+    const transformedContacts = locationData.locations.map((loc) => {
+      const phoneNumbersForLoc = locationData.contacts.phoneNumbers
+        .filter((phone) => phone.locationId === loc.id)
+        .map((phone) => ({
+          type: phone.type.charAt(0).toUpperCase() + phone.type.slice(1),
+          number: phone.number,
+        }));
+
+      const emailsForLoc = locationData.contacts.emails
+        .filter((email) => email.locationId === loc.id)
+        .map((email) => ({
+          type: email.type.charAt(0).toUpperCase() + email.type.slice(1),
+          email: email.email,
+        }));
+
+      return {
+        location: loc.location,
+        phoneNumbers: phoneNumbersForLoc,
+        emails: emailsForLoc,
+      };
+    });
+
+    // Prepare complete data for API
+    const completeData = {
+      name: data.name,
+      commissionRate: data.commissionRate,
+      isActive: data.isActive,
+      locations: locationData.locations.map((loc) => ({
+        type: loc.type,
+        location: loc.location,
+        coordinates: {
+          latitude: parseFloat(loc.coordinates.latitude),
+          longitude: parseFloat(loc.coordinates.longitude),
+        },
+      })),
+      contacts: transformedContacts,
+      distributionRights: distributionRights.map((right) => ({
+        movieId: right.movieId,
+        commissionRate: right.commissionRate,
+        territories: right.territories,
+        validFrom: right.validFrom,
+        validUntil: right.validUntil,
+      })),
+    };
+
+    // Submit to API
+    addDistributorMutation(completeData, {
+      onSuccess: (data) => {
+        setDistributorData({
+          id: data.distributor._id,
+          distributorName: data.distributor.name,
+        });
+        setShowImageUpload(true);
+      },
+    });
+  };
+
+  const handleAddLocation = (data: LocationFormData) => {
+    setLocationData({
+      locations: [...locationData.locations, ...data.locations],
+      contacts: {
+        phoneNumbers: [
+          ...locationData.contacts.phoneNumbers,
+          ...data.contacts.phoneNumbers,
+        ],
+        emails: [...locationData.contacts.emails, ...data.contacts.emails],
+      },
+    });
+  };
+
+  const handleAddDistributionRight = (rightData: DistributionRightFormData) => {
+    setDistributionRights([...distributionRights, rightData]);
+  };
+
+  const handleDeleteLocation = (locationId: string) => {
+    setLocationData((prev) => ({
+      locations: prev.locations.filter((loc) => loc.id !== locationId),
+      contacts: {
+        phoneNumbers: prev.contacts.phoneNumbers.filter(
+          (phone) => phone.locationId !== locationId
+        ),
+        emails: prev.contacts.emails.filter(
+          (email) => email.locationId !== locationId
+        ),
+      },
+    }));
+  };
+
+  const handleDeleteDistributionRights = (indexToDelete: number) => {
+    setDistributionRights((prev) =>
+      prev.filter((_, index) => index !== indexToDelete)
+    );
+  };
+
+  return (
+    <Card className="w-full mx-auto ">
+      {!showImageUpload && (
+        <CardContent className="p-8">
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+              <div>
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Distributor Name</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div>
+                <FormField
+                  control={form.control}
+                  name="commissionRate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Commission Rate (%)</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          {...field}
+                          onChange={(e) => {
+                            let value = Number(e.target.value);
+                            if (value < 0) value = 0;
+                            if (value > 100) value = 100;
+                            field.onChange(value);
+                          }}
+                          min="0"
+                          max="100"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div>
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-xl font-semibold">
+                    Location and Contacts
+                  </h3>
+                  <LocationDialog onSave={handleAddLocation} />
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-2">
+                    {locationData.locations.map((location) => (
+                      <div key={location.id} className="relative">
+                        <LocationDialog
+                          key={location.id}
+                          onSave={(data: LocationFormData) => {
+                            setLocationData((prev) => {
+                              // Filter out old location and its contacts
+                              const updatedLocations = prev.locations.map(
+                                (loc) =>
+                                  loc.id === location.id
+                                    ? data.locations[0]
+                                    : loc
+                              );
+
+                              const updatedPhoneNumbers =
+                                prev.contacts.phoneNumbers
+                                  .filter(
+                                    (phone) => phone.locationId !== location.id
+                                  )
+                                  .concat(data.contacts.phoneNumbers);
+
+                              const updatedEmails = prev.contacts.emails
+                                .filter(
+                                  (email) => email.locationId !== location.id
+                                )
+                                .concat(data.contacts.emails);
+
+                              return {
+                                locations: updatedLocations,
+                                contacts: {
+                                  phoneNumbers: updatedPhoneNumbers,
+                                  emails: updatedEmails,
+                                },
+                              };
+                            });
+                          }}
+                          initialData={{
+                            locations: [location],
+                            contacts: {
+                              phoneNumbers:
+                                locationData.contacts.phoneNumbers.filter(
+                                  (phone) => phone.locationId === location.id
+                                ),
+                              emails: locationData.contacts.emails.filter(
+                                (email) => email.locationId === location.id
+                              ),
+                            },
+                          }}
+                          triggerText=""
+                          dialogTitle="Edit Location"
+                        >
+                          <div
+                            className={`px-3 py-1 text-sm cursor-pointer rounded-full pb-2 ${
+                              location.type === "HQ"
+                                ? "bg-primary/40"
+                                : "bg-secondary"
+                            }`}
+                          >
+                            {location.location}{" "}
+                            <span className="ml-2 text-xs">
+                              ({location.type})
+                            </span>
+                          </div>
+                        </LocationDialog>
+                        <button
+                          className="absolute -top-2.5 -right-0.5 bg-primary rounded-md"
+                          onClick={() => handleDeleteLocation(location.id)}
+                          title="Delete Location"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-xl font-semibold">Distribution Rights</h3>
+                  <DistributionRightsDialog
+                    onSave={handleAddDistributionRight}
+                    addresses={locationData.locations}
+                  />
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {distributionRights.map((right, index) => (
+                    <div key={index} className=" relative">
+                      <DistributionRightsDialog
+                        key={index}
+                        onSave={(updatedRight: DistributionRightFormData) => {
+                          setDistributionRights((prev) =>
+                            prev.map((r, i) => (i === index ? updatedRight : r))
+                          );
+                        }}
+                        addresses={locationData.locations}
+                        initialData={right}
+                        triggerText=""
+                        dialogTitle="Edit Distribution Right"
+                      >
+                        <div className="text-sm cursor-pointer bg-secondary rounded-2xl p-2">
+                          <span className="ml-2 text-xs">
+                            ({right.territories.join(", ")})
+                          </span>
+                        </div>
+                      </DistributionRightsDialog>
+                      <button
+                        className="absolute -top-2.5 -right-0.5 bg-primary rounded-md"
+                        onClick={() => handleDeleteDistributionRights(index)}
+                        title="Delete Rights"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <Button type="submit" className="w-full">
+                Add Distributor
+              </Button>
+            </form>
+          </Form>
+        </CardContent>
+      )}
+      {showImageUpload && (
+        <CardContent className="flex justify-center p-5">
+          <ImageUploader
+            uploadFn={({ image }) =>
+              uploadDistributorLogo({
+                distributorId: distributorData.id || "",
+                image,
+              })
+            }
+            fallbackText={distributorData.distributorName || ""}
+            isUploading={isPending}
+            buttonText={"Distributor Logo"}
+          />
+        </CardContent>
+      )}
+    </Card>
+  );
+};
+
+export default DistributorForm;
+
+
+
+import { useState } from "react";
+
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/shadcn/table";
+
+import { Card, CardContent } from "@/components/shadcn/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/shadcn/select";
+import { Button } from "@/components/shadcn/button";
+import { Edit, Trash2, MapPin, Phone, Mail, Plus } from "lucide-react";
+
+import AlertDialog from "@/components/common/AlertDialog";
+
+import {
+  useDeleteDistributor,
+  useFetchAllDistributors,
+} from "@/api/distributorApi";
+
+type FilterStatus = "all" | "active" | "inactive";
+
+interface DistributorsTableProps {
+  formState: boolean;
+  setShowForm:React.Dispatch<React.SetStateAction<boolean>>
+}
+
+const DistributorsTable: React.FC<DistributorsTableProps> = ({
+  formState,
+  setShowForm,
+}) => {
+  const [filter, setFilter] = useState<FilterStatus>("active");
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [selectedDistributorId, setSelectedDistributorId] = useState<
+    string | null
+  >(null);
+
+  // API hooks
+  const { data, isLoading, error } = useFetchAllDistributors();
+  const deleteDistributorMutation = useDeleteDistributor();
+
+  // Get distributors array from the response
+  const distributors = data || [];
+
+  const filteredDistributors = distributors.filter((dist) => {
+    if (filter === "all") return true;
+    if (filter === "active") return dist.isActive;
+    if (filter === "inactive") return !dist.isActive;
+    return false;
+  });
+
+  const handleDeleteClick = (distributorId: string) => {
+    setSelectedDistributorId(distributorId);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (selectedDistributorId) {
+      await deleteDistributorMutation.mutateAsync(selectedDistributorId);
+      setDeleteDialogOpen(false);
+      setSelectedDistributorId(null);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center p-8">Loading distributors...</div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-red-600 p-4">
+        Error loading distributors: {error.message}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4 min-w-[70vw]">
+      {/* Header with Filter */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex justify-center items-center gap-6">
+          <h2 className="text-2xl font-bold">Distributors</h2>
+          <Button onClick={() => setShowForm(!formState)}>
+            <Plus />
+            <span>Add Distributor</span>
+          </Button>
+        </div>
+        <Select
+          value={filter}
+          onValueChange={(value) => setFilter(value as FilterStatus)}
+        >
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Select filter" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All</SelectItem>
+            <SelectItem value="active">Active</SelectItem>
+            <SelectItem value="inactive">Inactive</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Card Container */}
+      <Card className="shadow-lg">
+        <CardContent className="p-4 overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-16">S.N.</TableHead>
+                <TableHead>Distributor</TableHead>
+                <TableHead>Locations</TableHead>
+                <TableHead>Contact Info</TableHead>
+                <TableHead>Commission Rate</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+
+            <TableBody>
+              {filteredDistributors.length > 0 ? (
+                filteredDistributors.map((dist, index) => (
+                  <TableRow key={dist._id}>
+                    <TableCell>{index + 1}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center space-x-3">
+                        {dist.logo_URL && (
+                          <img
+                            src={dist.logo_URL}
+                            alt={`${dist.name} logo`}
+                            className="w-10 h-10 rounded-full object-cover"
+                          />
+                        )}
+                        <span className="font-medium">{dist.name}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-col gap-1">
+                        {dist.locations.map((loc, i) => (
+                          <div key={i} className="flex items-center text-sm">
+                            <MapPin
+                              className={`h-4 w-4 mr-1 ${
+                                loc.type === "HQ"
+                                  ? "text-primary"
+                                  : "text-gray-600"
+                              }`}
+                            />
+                            <span>
+                              {loc.type}: {loc.location}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-col gap-5">
+                        {dist.contacts.map((contact, i) => (
+                          <div key={i} className="text-sm">
+                            <div className="font-medium text-primary/80">
+                              {contact.location}
+                            </div>
+                            {contact.phoneNumbers.length > 0 && (
+                              <div className="flex items-center">
+                                <Phone className="h-3 w-3 mr-1 text-gray-600" />
+                                <span>{contact.phoneNumbers[0].number}</span>
+                              </div>
+                            )}
+                            {contact.emails.length > 0 && (
+                              <div className="flex items-center">
+                                <Mail className="h-3 w-3 mr-1 text-gray-600" />
+                                <span>{contact.emails[0].email}</span>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </TableCell>
+                    <TableCell>{dist.commissionRate}%</TableCell>
+                    <TableCell className="text-right space-x-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          // TODO: implement edit functionality
+                        }}
+                      >
+                        <Edit className="h-4 w-4" />
+                        <span>Edit</span>
+                      </Button>
+
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleDeleteClick(dist._id)}
+                        disabled={deleteDistributorMutation.isPending}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        <span>Delete</span>
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-4">
+                    No distributors found.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog
+        isOpen={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+        onConfirm={handleDeleteConfirm}
+        description="This action cannot be undone. This will permanently remove this distributor and their data from our servers."
+        isProcessing={deleteDistributorMutation.isPending}
+        actionText="Delete Distributor"
+        processingText="Deleting"
+      />
+    </div>
+  );
+};
+
+export default DistributorsTable;
+
+
+
+
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  Form,
+  FormField,
+  FormItem,
+  FormMessage,
+} from "@/components/shadcn/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/shadcn/select";
+import {
+  Dialog,
+  DialogDescription,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+} from "@/components/shadcn/dialog";
+import { Input } from "@/components/shadcn/input";
+import { Button } from "@/components/shadcn/button";
+import { Plus, X } from "lucide-react";
+import {
+  LocationFormData,
+  LocationFormSchema,
+} from "@/lib/formSchemas/distributorFormSchema/locationSchemas";
+
+interface LocationDialogProps {
+  onSave: (data: LocationFormData) => void;
+  initialData?: LocationFormData;
+  triggerText?: string;
+  dialogTitle?: string;
+  children?: React.ReactNode;
+}
+
+const LocationDialog = ({
+  onSave,
+  initialData,
+  triggerText = initialData ? "Edit Locations" : "Add Locations",
+  dialogTitle = initialData ? "Edit Locations" : "Add Locations",
+  children,
+}: LocationDialogProps) => {
+  const idCounter = useRef(0);
+  const [isOpen, setIsOpen] = useState(false);
+
+  const generateLocationId = useCallback(() => {
+    return `loc-${Date.now()}-${idCounter.current++}`;
+  }, []);
+
+  const defaultValues = useMemo((): LocationFormData => {
+    if (initialData) {
+      return {
+        ...initialData,
+        locations: initialData.locations.map((loc) => ({
+          ...loc,
+          type: loc.type === "HQ" ? "HQ" : "Branch",
+        })),
+      };
+    }
+    return {
+      locations: [],
+      contacts: { phoneNumbers: [], emails: [] },
+    };
+  }, [initialData]);
+
+  const form = useForm<LocationFormData>({
+    resolver: zodResolver(LocationFormSchema),
+    defaultValues,
+    mode: "onChange", // validate as the user types/changes fields
+  });
+
+  const { handleSubmit, reset, setValue, watch } = form;
+  const locations = watch("locations") as LocationFormData["locations"];
+  const phoneNumbers = watch("contacts.phoneNumbers");
+  const emails = watch("contacts.emails");
+
+  // Initialize form with one location and its contacts for new entries.
+  useEffect(() => {
+    if (isOpen && !initialData) {
+      const newLocationId = generateLocationId();
+      reset({
+        locations: [
+          {
+            id: newLocationId,
+            type: "Branch",
+            location: "",
+            coordinates: { latitude: "", longitude: "" },
+          },
+        ],
+        contacts: {
+          phoneNumbers: [
+            {
+              type: "INQUIRY",
+              locationId: newLocationId,
+              number: "",
+            },
+          ],
+          emails: [
+            {
+              type: "INQUIRY",
+              locationId: newLocationId,
+              email: "",
+            },
+          ],
+        },
+      });
+    }
+  }, [isOpen, initialData, reset, generateLocationId]);
+
+  const handleTypeChange = (index: number, newType: "HQ" | "Branch") => {
+    const updatedLocations = locations.map((loc, i) => {
+      if (i === index) {
+        return {
+          ...loc,
+          type: newType,
+        };
+      }
+      if (newType === "HQ" && loc.type === "HQ") {
+        return {
+          ...loc,
+          type: "Branch" as "Branch" | "HQ",
+        };
+      }
+      return loc;
+    });
+    setValue("locations", updatedLocations);
+  };
+
+  const hasHQ = locations.some((loc) => loc.type === "HQ");
+  const onSubmit = (data: LocationFormData) => {
+    onSave(data);
+    setIsOpen(false);
+    reset();
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogTrigger asChild>
+        {children || (
+          <Button variant="outline" size="sm">
+            <Plus className="w-4 h-4 mr-2" />
+            {triggerText}
+          </Button>
+        )}
+      </DialogTrigger>
+      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{dialogTitle}</DialogTitle>
+        </DialogHeader>
+        <DialogDescription>
+          Please fill out the details for the location.
+        </DialogDescription>
+        <Form {...form}>
+          <form className="space-y-4">
+            {/* Addresses Section */}
+            <div className="space-y-4">
+              <h4 className="font-medium">Addresses</h4>
+              {locations.map((loc, index) => (
+                <div
+                  key={loc.id}
+                  className="border p-4 rounded-md space-y-4 relative pt-12"
+                >
+                  <Button
+                    variant="destructive"
+                    className="absolute top-3 right-3"
+                    onClick={() => {
+                      const updatedLocations = locations.filter(
+                        (_, i) => i !== index
+                      );
+                      setValue("locations", updatedLocations);
+                      // Update contacts when location is removed
+                      setValue(
+                        "contacts.phoneNumbers",
+                        phoneNumbers.filter((p) => p.locationId !== loc.id)
+                      );
+                      setValue(
+                        "contacts.emails",
+                        emails.filter((e) => e.locationId !== loc.id)
+                      );
+                    }}
+                  >
+                    <X />
+                  </Button>
+                  <div className="space-y-4">
+                    <div className="flex justify-between gap-3">
+                      <FormField
+                        control={form.control}
+                        name={`locations.${index}.type`}
+                        render={({ field, fieldState }) => (
+                          <FormItem>
+                            <Select
+                              value={field.value}
+                              onValueChange={(value) => {
+                                handleTypeChange(
+                                  index,
+                                  value as "HQ" | "Branch"
+                                );
+                                field.onChange(value);
+                              }}
+                            >
+                              <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Type" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem
+                                  value="HQ"
+                                  disabled={hasHQ && loc.type !== "HQ"}
+                                >
+                                  HQ
+                                </SelectItem>
+                                <SelectItem value="Branch">Branch</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage>
+                              {fieldState.error?.message}
+                            </FormMessage>
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name={`locations.${index}.location`}
+                        render={({ field, fieldState }) => (
+                          <FormItem className="w-full">
+                            <Input {...field} placeholder="Address" />
+                            <FormMessage>
+                              {fieldState.error?.message}
+                            </FormMessage>
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    <h5 className="font-medium">Co-ordinates:</h5>
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name={`locations.${index}.coordinates.latitude`}
+                        render={({ field, fieldState }) => (
+                          <FormItem>
+                            <Input {...field} placeholder="Latitude" />
+                            <FormMessage>
+                              {fieldState.error?.message}
+                            </FormMessage>
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name={`locations.${index}.coordinates.longitude`}
+                        render={({ field, fieldState }) => (
+                          <FormItem>
+                            <Input {...field} placeholder="Longitude" />
+                            <FormMessage>
+                              {fieldState.error?.message}
+                            </FormMessage>
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  const newLocation = {
+                    id: generateLocationId(),
+                    type: "Branch" as "Branch" | "HQ",
+                    location: "",
+                    coordinates: { latitude: "", longitude: "" },
+                  };
+                  setValue("locations", [...locations, newLocation]);
+                }}
+              >
+                <Plus /> Add Address
+              </Button>
+            </div>
+
+            {/* Contacts Section */}
+            <div className="space-y-4 border p-4 rounded-md">
+              <h4 className="font-medium">Contacts</h4>
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <h5 className="font-medium">Phone Numbers</h5>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const defaultLocationId = locations[0]?.id || "";
+                      setValue("contacts.phoneNumbers", [
+                        ...phoneNumbers,
+                        {
+                          type: "INQUIRY",
+                          locationId: defaultLocationId,
+                          number: "",
+                        },
+                      ]);
+                    }}
+                  >
+                    <Plus size={15} />
+                  </button>
+                </div>
+                {phoneNumbers.map((phone, index) => (
+                  <div key={index} className="flex gap-2">
+                    <FormField
+                      control={form.control}
+                      name={`contacts.phoneNumbers.${index}.type`}
+                      render={({ field, fieldState }) => (
+                        <FormItem>
+                          <Select
+                            value={field.value}
+                            onValueChange={(value) => {
+                              const updated = [...phoneNumbers];
+                              updated[index].type = value as
+                                | "INQUIRY"
+                                | "SUPPORT";
+                              field.onChange(value);
+                              setValue("contacts.phoneNumbers", updated);
+                            }}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Type" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="INQUIRY">Inquiry</SelectItem>
+                              <SelectItem value="SUPPORT">Support</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage>{fieldState.error?.message}</FormMessage>
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name={`contacts.phoneNumbers.${index}.locationId`}
+                      render={({ field, fieldState }) => (
+                        <FormItem>
+                          <Select
+                            value={field.value}
+                            onValueChange={(value) => {
+                              const updated = [...phoneNumbers];
+                              updated[index].locationId = value;
+                              field.onChange(value);
+                              setValue("contacts.phoneNumbers", updated);
+                            }}
+                          >
+                            <SelectTrigger className="">
+                              <SelectValue placeholder="Address" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {locations.map((loc) => (
+                                <SelectItem key={loc.id} value={loc.id}>
+                                  {loc.location || "Add a location above"}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage>{fieldState.error?.message}</FormMessage>
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name={`contacts.phoneNumbers.${index}.number`}
+                      render={({ field, fieldState }) => (
+                        <FormItem className="flex-1">
+                          <Input {...field} placeholder="Phone Number" />
+                          <FormMessage>{fieldState.error?.message}</FormMessage>
+                        </FormItem>
+                      )}
+                    />
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() =>
+                        setValue(
+                          "contacts.phoneNumbers",
+                          phoneNumbers.filter((_, i) => i !== index)
+                        )
+                      }
+                    >
+                      <X size={15} />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+
+              <div className="space-y-5">
+                <div className="flex items-center gap-2">
+                  <h5 className="font-medium">Emails</h5>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      const defaultLocationId = locations[0]?.id || "";
+                      setValue("contacts.emails", [
+                        ...emails,
+                        {
+                          type: "INQUIRY",
+                          locationId: defaultLocationId,
+                          email: "",
+                        },
+                      ]);
+                    }}
+                  >
+                    <Plus size={15} />
+                  </Button>
+                </div>
+                {emails.map((email, index) => (
+                  <div key={index} className="flex gap-2 items-center">
+                    <FormField
+                      control={form.control}
+                      name={`contacts.emails.${index}.type`}
+                      render={({ field, fieldState }) => (
+                        <FormItem>
+                          <Select
+                            value={field.value}
+                            onValueChange={(value) => {
+                              const updated = [...emails];
+                              updated[index].type = value as
+                                | "INQUIRY"
+                                | "SUPPORT";
+                              field.onChange(value);
+                              setValue("contacts.emails", updated);
+                            }}
+                          >
+                            <SelectTrigger className="">
+                              <SelectValue placeholder="Type" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="INQUIRY">Inquiry</SelectItem>
+                              <SelectItem value="SUPPORT">Support</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage>{fieldState.error?.message}</FormMessage>
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name={`contacts.emails.${index}.locationId`}
+                      render={({ field, fieldState }) => (
+                        <FormItem>
+                          <Select
+                            value={field.value}
+                            onValueChange={(value) => {
+                              const updated = [...emails];
+                              updated[index].locationId = value;
+                              field.onChange(value);
+                              setValue("contacts.emails", updated);
+                            }}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Address" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {locations.map((loc) => (
+                                <SelectItem key={loc.id} value={loc.id}>
+                                  {loc.location || "Add a location above"}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage>{fieldState.error?.message}</FormMessage>
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name={`contacts.emails.${index}.email`}
+                      render={({ field, fieldState }) => (
+                        <FormItem className="flex-1">
+                          <Input {...field} placeholder="Email Address" />
+                          <FormMessage>{fieldState.error?.message}</FormMessage>
+                        </FormItem>
+                      )}
+                    />
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() =>
+                        setValue(
+                          "contacts.emails",
+                          emails.filter((_, i) => i !== index)
+                        )
+                      }
+                    >
+                      <X size={15} />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button type="button" onClick={handleSubmit(onSubmit)} className="w-full">
+                Save Location
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+export default LocationDialog;
+
+
+import { z } from "zod";
+
+export const LocationItemSchema = z.object({
+  id: z.string(),
+  type: z.enum(["HQ", "Branch"]),
+  location: z
+    .string()
+    .min(1, "Address is required")
+    .max(150, "Address must be less than 150 characters"),
+  coordinates: z.object({
+    latitude: z.string().nonempty("Latitude is required"),
+    longitude: z.string().nonempty("Longitude is required"),
+  }),
+});
+
+export const ContactPhoneSchema = z.object({
+  type: z.enum(["INQUIRY", "SUPPORT"]),
+  number: z
+    .string()
+    .regex(/^(?:\+977[- ]?)?\d{10}$/, "Invalid Nepali phone number format"),
+  locationId: z.string(),
+});
+
+export const ContactEmailSchema = z.object({
+  type: z.enum(["INQUIRY", "SUPPORT"]),
+  email: z
+    .string()
+    .email("Invalid email address")
+    .nonempty("Email is required"),
+  locationId: z.string(),
+});
+
+export const LocationFormSchema = z.object({
+  locations: z
+    .array(LocationItemSchema)
+    .min(1, "At least one address is required"),
+  contacts: z.object({
+    phoneNumbers: z
+      .array(ContactPhoneSchema)
+      .min(1, "At least one phone number is required"),
+    emails: z
+      .array(ContactEmailSchema)
+      .min(1, "At least one email is required"),
+  }),
+});
+
+export type LocationFormData = z.infer<typeof LocationFormSchema>;
+export type LocationItem = z.infer<typeof LocationItemSchema>;
+
+
+import { z } from "zod";
+
+export const DistributionRightFormSchema = z.object({
+  movieId: z.string().nonempty("Movie is required"),
+  commissionRate: z
+    .number()
+    .min(0, "Commission rate cannot be negative")
+    .max(100, "Commission rate cannot exceed 100"),
+  territories: z.array(z.string()).min(1, "At least one territory is required"),
+  validFrom: z.string().nonempty("Valid From date is required"),
+  validUntil: z.string().nonempty("Valid Until date is required"),
+});
+
+export type DistributionRightFormData = z.infer<
+  typeof DistributionRightFormSchema
+>;
+
+
+
+import { z } from "zod";
+
+export const DistributorSchema = z.object({
+  name: z
+    .string()
+    .nonempty("Name is required")
+    .max(50, "Name must be less than 50 characters"),
+  commissionRate: z
+    .number()
+    .min(0, "Commission rate cannot be negative")
+    .max(100, "Commission rate cannot exceed 100"),
+  isActive: z.boolean(),
+});
+
+export type DistributorFormData = z.infer<typeof DistributorSchema>;
+
+
+import { useState, useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/shadcn/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/shadcn/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+  DialogDescription,
+} from "@/components/shadcn/dialog";
+import { Input } from "@/components/shadcn/input";
+import { Button } from "@/components/shadcn/button";
+import { Plus } from "lucide-react";
+import { LocationItem } from "@/lib/formSchemas/distributorFormSchema/locationSchemas";
+import {
+  DistributionRightFormData,
+  DistributionRightFormSchema,
+} from "@/lib/formSchemas/distributorFormSchema/rightsSchema";
+import { useFetchAllMovies } from "@/api/movieApi";
+
+interface DistributionRightsDialogProps {
+  onSave: (data: DistributionRightFormData) => void;
+  addresses: LocationItem[];
+  initialData?: DistributionRightFormData;
+  triggerText?: string;
+  dialogTitle?: string;
+  children?: React.ReactNode;
+}
+
+const DistributionRightsDialog = ({
+  onSave,
+  addresses,
+  initialData,
+  triggerText = initialData
+    ? "Edit Distribution Right"
+    : "Add Distribution Rights",
+  dialogTitle = initialData
+    ? "Edit Distribution Right"
+    : "Add Distribution Rights",
+  children,
+}: DistributionRightsDialogProps) => {
+  const { data: movies = [] } = useFetchAllMovies();
+  const defaultValues: DistributionRightFormData = initialData || {
+    movieId: "",
+    commissionRate: 0,
+    territories: [],
+    validFrom: "",
+    validUntil: "",
+  };
+
+  const form = useForm<DistributionRightFormData>({
+    resolver: zodResolver(DistributionRightFormSchema),
+    defaultValues,
+  });
+  const { reset } = form;
+
+  const [isOpen, setIsOpen] = useState(false);
+  const [selectedTerritories, setSelectedTerritories] = useState<string[]>(
+    defaultValues.territories
+  );
+
+  useEffect(() => {
+    if (initialData) {
+      setSelectedTerritories(initialData.territories);
+    }
+  }, [initialData]);
+
+  const onDistributorSubmit = (data: DistributionRightFormData) => {
+    onSave({ ...data, territories: selectedTerritories });
+    setIsOpen(false);
+    reset(defaultValues);
+    setSelectedTerritories(defaultValues.territories);
+  };
+
+  const handleFormSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const data = form.getValues();
+    onDistributorSubmit(data);
+  };
+
+  const availableLocations = addresses.filter(
+    (loc) => loc.location.trim() !== ""
+  );
+
+  const today = new Date().toISOString().split("T")[0];
+  const maxValidUntilDate = new Date();
+  maxValidUntilDate.setDate(new Date().getDate() + 183);
+  const maxDate = maxValidUntilDate.toISOString().split("T")[0];
+
+  return (
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogTrigger asChild>
+        {children || (
+          <Button variant="outline" size="sm">
+            <Plus className="w-4 h-4 mr-2" />
+            {triggerText}
+          </Button>
+        )}
+      </DialogTrigger>
+      <DialogContent className="max-w-lg p-6">
+        <DialogHeader>
+          <DialogTitle>{dialogTitle}</DialogTitle>
+        </DialogHeader>
+        <DialogDescription>
+          Please fill out the details for the distribution rights.
+        </DialogDescription>
+        <Form {...form}>
+          <form onSubmit={handleFormSubmit} className="space-y-6">
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="movieId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Movie</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select movie" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {movies.map((movie) => (
+                          <SelectItem key={movie._id} value={movie._id}>
+                            {movie.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="commissionRate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Commission Rate (%)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        {...field}
+                        onChange={(e) => {
+                          let value = Number(e.target.value);
+                          if (value < 0) value = 0;
+                          if (value > 100) value = 100;
+                          field.onChange(value);
+                        }}
+                        min="0"
+                        max="100"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div>
+              <FormLabel className="mb-2">Territories</FormLabel>
+              <div className="flex flex-wrap gap-2 my-4">
+                {availableLocations.length > 0 ? (
+                  availableLocations.map((loc) => (
+                    <div
+                      key={loc.id}
+                      className={`text-sm cursor-pointer rounded-full px-3 pt-1.5 pb-2 ${
+                        selectedTerritories.includes(loc.location)
+                          ? "bg-primary/40"
+                          : "bg-secondary"
+                      }`}
+                      onClick={() =>
+                        setSelectedTerritories((prev) =>
+                          prev.includes(loc.location)
+                            ? prev.filter((t) => t !== loc.location)
+                            : [...prev, loc.location]
+                        )
+                      }
+                    >
+                      {loc.location}
+                    </div>
+                  ))
+                ) : (
+                  <span className="text-sm text-muted">
+                    No locations available. Please add locations first.
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="validFrom"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Valid From</FormLabel>
+                    <FormControl>
+                      <Input type="date" min={today} {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="validUntil"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Valid Until</FormLabel>
+                    <FormControl>
+                      <Input type="date" min={today} max={maxDate} {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            <DialogFooter>
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={availableLocations.length === 0}
+              >
+                Save Distribution Rights
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+export default DistributionRightsDialog;
+
+import {
+  addDistributor,
+  deleteDistributor,
+  fetchAllDistributors,
+  fetchDistributorsByMovie,
+  uploadDistributorLogo,
+} from "@/service/distributorService";
+import { toast } from "sonner";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  DistributorLogoRequest,
+  DistributorResponse,
+} from "@/interfaces/Idistributor";
+
+export const useAddDistributor = () => {
+  return useMutation({
+    mutationFn: addDistributor,
+    onSuccess: () => {
+      toast.success("Distributor Added Successfully", {
+        className: "text-white border-success",
+      });
+    },
+    onError: (error: any) => {
+      toast.error(
+        error.response?.data?.message || "Adding Distributor failed",
+        {
+          className: "bg-error text-white border-error",
+        }
+      );
+    },
+  });
+};
+
+export const useFetchAllDistributors = () => {
+  return useQuery<DistributorResponse[], Error>({
+    queryKey: ["distributors"],
+    queryFn: () => fetchAllDistributors(),
+  });
+};
+export const useFetchDistributorsByMovie = (movieId: string) => {
+  return useQuery<DistributorResponse[], Error>({
+    queryKey: ["distributorsByMovie", movieId],
+    queryFn: () => fetchDistributorsByMovie(movieId),
+  });
+};
+
+export const useDeleteDistributor = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => deleteDistributor(id),
+    onSuccess: () => {
+      toast.success("Distributor deleted successfully", {
+        className: "text-white border-success",
+      });
+      // Invalidate and refetch the distributors list
+      queryClient.invalidateQueries({ queryKey: ["movies"] });
+    },
+    onError: (error: any) => {
+      toast.error(
+        error.response?.data?.message || "Failed to delete distributor",
+        {
+          className: "bg-error text-white border-error",
+        }
+      );
+    },
+  });
+};
+
+export const useDistributorLogoUpload = () => {
+  return useMutation({
+    mutationFn: (request: DistributorLogoRequest) =>
+      uploadDistributorLogo(request),
+    onSuccess: () => {
+      toast.success("Distributor Logo uploaded successfully", {
+        className: "text-white border-success",
+      });
+      setTimeout(() => {
+        window.location.href = "/";
+      }, 2000);
+    },
+    onError: (error: any) => {
+      console.error("Upload error:", error);
+      toast.error(error.response?.data?.message || "Upload failed");
+    },
+  });
+};
+
+import { ImageUploadResponse } from "@/interfaces/auth/IImage";
+import {
+  DistributorBase,
+  DistributorLogoRequest,
+  DistributorResponse,
+} from "@/interfaces/Idistributor";
+import { axiosInstance } from "@/utils/axiosInstance";
+
+export async function addDistributor(credentials: DistributorBase) {
+  const { data } = await axiosInstance.post("/distributor/add", credentials);
+  return data;
+}
+
+export const fetchAllDistributors = async (): Promise<
+  DistributorResponse[]
+> => {
+  const url = "/distributor/getAll";
+  const response = await axiosInstance.get(url);
+
+  if (!response.data?.distributors) {
+    return [];
+  }
+  return response.data.distributors;
+};
+export const fetchDistributorsByMovie = async (
+  movieId: string
+): Promise<DistributorResponse[]> => {
+  const url = `/distributor/getByMovie/${movieId}`;
+  const response = await axiosInstance.get(url);
+  if (!response.data?.distributors) {
+    return [];
+  }
+  return response.data.distributors;
+};
+
+export async function deleteDistributor(id: string) {
+  const response = await axiosInstance.delete(`/distributor/delete/${id}`);
+  return response.data;
+}
+
+export const uploadDistributorLogo = async ({
+  image,
+  currentImageUrl,
+  distributorId,
+}: DistributorLogoRequest): Promise<ImageUploadResponse> => {
+  const formData = new FormData();
+  formData.append("image", image);
+  formData.append("distributorId", distributorId);
+  if (currentImageUrl) {
+    formData.append("currentImageUrl", currentImageUrl);
+  }
+
+  const response = await axiosInstance.patch<ImageUploadResponse>(
+    "/distributor/upload",
+    formData,
+    {
+      headers: { "Content-Type": "multipart/form-data" },
+    }
+  );
+  return response.data;
+};
+
+
+import { Distributor } from "../models/distributorsModel.js";
+import {
+  deleteImageFromCloudinary,
+  processAndUploadImages,
+} from "../utils/imageUtils/cloudinaryUtils.js";
+
+export async function addDistributor(request, response) {
+  const distributor_details = request.body;
+  console.log(distributor_details);
+
+  try {
+    const distributor = await Distributor.create(distributor_details);
+    return response.status(201).json({
+      message: "Distributor added successfully.",
+      distributor: distributor,
+    });
+  } catch (error) {
+    console.error(`Error Adding Distributor:${error.message}`);
+    return response
+      .status(500)
+      .json({ message: "Internal Server Error. Check console for details" });
+  }
+}
+export async function checkUniqueDistributors(request, response) {
+  const { name } = request.body;
+
+  try {
+    const distributor = await Distributor.find({ name: name });
+    if (distributor.length > 0) {
+      return response.status(409).json({
+        message: "Distributor already exists.",
+        distributor: distributor,
+      });
+    }
+    return response.status(200).json({ message: "Unique distributor." });
+  } catch (error) {
+    console.error(`Error Checking unique distributor:${error.message}`);
+    return response
+      .status(500)
+      .json({ message: "Internal Server Error. Check console for details" });
+  }
+}
+export async function getAllDistributors(request, response) {
+  try {
+    const distributors = await Distributor.find({});
+    if (distributors.length !== 0) {
+      return response.status(200).json({ distributors: distributors });
+    }
+    return response.status(204).json({ message: "No Distributors available." });
+  } catch (error) {
+    console.error(`Error Fetching All Distributors:${error.message}`);
+    return response
+      .status(500)
+      .json({ message: "Internal Server Error. Check console for details" });
+  }
+}
+export async function getDistributorByName(request, response) {
+  const { name } = request.query;
+  if (!name) {
+    return response
+      .status(400)
+      .json({ message: "Name parameter is required in the query." });
+  }
+  try {
+    const distributor = await Distributor.findOne({ name: name });
+    if (distributor.length !== 0) {
+      return response.status(200).json({ distributor: distributor });
+    }
+    return response
+      .status(204)
+      .json({ message: "No Distributor available by this name." });
+  } catch (error) {
+    console.error(`Error Fetching Distributors:${error.message}`);
+    return response
+      .status(500)
+      .json({ message: "Internal Server Error. Check console for details" });
+  }
+}
+
+export const getDistributorsByMovieId = async (req, res) => {
+  const { movieId } = req.params; // Extract movieId from request parameters
+
+  try {
+    // Find distributors that have distribution rights for the given movieId
+    const distributors = await Distributor.find({
+      "distributionRights.movieId": movieId,
+    }).populate({
+      path: "distributionRights.movieId",
+      select: "name", // Assuming the movie model has a title field
+    });
+
+    if (distributors.length === 0) {
+      return res
+        .status(404)
+        .json({ message: "No distributors found for this movie ID" });
+    }
+
+    res.status(200).json({ distributors: distributors });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+export async function getDistributorsByLocation(request, response) {
+  const { location } = request.body;
+  try {
+    const distributors = await Distributor.find({ location: location });
+    if (distributors.length !== 0) {
+      return response.status(200).json({ distributors: distributors });
+    }
+    return response
+      .status(204)
+      .json({ message: "No Distributor available for this location." });
+  } catch (error) {
+    console.error(`Error Fetching Distributors:${error.message}`);
+    return response
+      .status(500)
+      .json({ message: "Internal Server Error. Check console for details" });
+  }
+}
+export async function getDistributorsbyStatus(request, response) {
+  const { isActive } = request.params;
+  try {
+    const distributors = await Distributor.find({ isActive: isActive });
+    if (distributors.length !== 0) {
+      return response.status(200).json({ distributors: distributors });
+    }
+    return response
+      .status(204)
+      .json({ message: "No Distributor available for this location." });
+  } catch (error) {
+    console.error(`Error Fetching Distributors:${error.message}`);
+    return response
+      .status(500)
+      .json({ message: "Internal Server Error. Check console for details" });
+  }
+}
+export async function updateDistributor(request, response) {
+  const { id } = request.params;
+  const updateData = request.body;
+
+  try {
+    const updatedDistributor = await Distributor.findByIdAndUpdate(
+      id,
+      updateData,
+      {
+        new: true,
+        runValidators: true,
+      }
+    );
+
+    if (!updatedDistributor) {
+      return response.status(404).json({ message: "Distributor not found." });
+    }
+
+    return response.status(200).json({ distributor: updatedDistributor });
+  } catch (error) {
+    console.error(`Error updating distributor: ${error.message}`);
+    return response.status(500).json({ message: "Internal Server Error" });
+  }
+}
+export async function deleteDistributor(request, response) {
+  const { id } = request.params;
+
+  try {
+    const deletedDistributor = await Distributor.findByIdAndDelete(id);
+
+    if (!deletedDistributor) {
+      return response.status(404).json({ message: "Distributor not found." });
+    }
+    return response.status(200).json({
+      message: "Distributor deleted successfully.",
+      distributor: deletedDistributor,
+    });
+  } catch (error) {
+    console.error(`Error deleting distributor: ${error.message}`);
+    return response
+      .status(500)
+      .json({ message: "Internal Server Error. Check console for details" });
+  }
+}
+
+export async function uploadDistributorLogo(request, response) {
+  try {
+    const { distributorId, currentImageUrl } = request.body;
+    if (!distributorId) {
+      return response.status(400).json({ error: "distributorId is required" });
+    }
+
+    if (!request.file) {
+      return response.status(400).json({ error: "No image file provided" });
+    }
+
+    const imageUrls = await processAndUploadImages(
+      [request.file.buffer],
+      "distributors"
+    );
+
+    // Update user profile URL in the database
+    await Distributor.findByIdAndUpdate(distributorId, {
+      logo_URL: imageUrls[0],
+      isActive: true,
+    });
+    if (currentImageUrl) {
+      await deleteImageFromCloudinary(currentImageUrl);
+    }
+    return response.status(200).json({
+      message: "Profile image uploaded successfully",
+    });
+  } catch (error) {
+    console.error("Error uploading profile image:", error);
+    return response.status(500).json({ message: "Internal Server Error" });
+  }
+}

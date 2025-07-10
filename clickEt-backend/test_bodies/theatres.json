@@ -1,0 +1,55 @@
+{
+  "name": "Grand Theatre",
+  "locations": [
+      {
+          "address": "123 Main Street, Cityville",
+          "coordinates": {
+              "latitude": 40.712776,
+              "longitude": -74.005974
+          }
+      },
+      {
+          "address": "123 Main Street, Cityville",
+          "coordinates": {
+              "latitude": 40.712776,
+              "longitude": -74.005974
+          }
+      }
+  ],
+  "contacts": [
+      {
+          "location": "123 Main Street, Cityville",
+          "phoneNumbers": [
+              {
+                  "         type": "Inquiry",
+                  "number": "+1234567890"
+              },
+              {
+                  "type": "Support",
+                  "number": "+0987654321"
+              }
+          ],
+          "emails": [
+              {
+                  "type": "Inquiry",
+                  "email": "inquiry@grandtheatre.com"
+              },
+              {
+                  "type": "Support",
+                  "email": "support@grandtheatre.com"
+              }
+          ]
+      }
+  ],
+  "hallIds": [
+      "64c3f8a9b7f8a9b7f8a9b7f8",
+      "64c3f8a9b7f8a9b7f8a9b7f9"
+  ],
+  "commissionRate": [
+      {
+          "address": "123 Main Street, Cityville",
+          "rate": 10
+      }
+  ],
+  "isActive": true
+}

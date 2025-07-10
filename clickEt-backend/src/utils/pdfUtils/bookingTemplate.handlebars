@@ -1,0 +1,133 @@
+<!-- bookingTemplate.handlebars -->
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Tax Invoice</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      font-size: 14px;
+      margin: 20px;
+      color: #000;
+    }
+    .ticket-container {
+      width: 400px;
+      margin: 0 auto;
+      text-align: left;
+      border: 1px solid #ddd;
+      padding: 15px;
+    }
+    .ticket-header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .ticket-header h2,
+    .ticket-header p {
+      margin: 0;
+      line-height: 1.3;
+    }
+    .ticket-header h2 {
+      font-size: 18px;
+      font-weight: bold;
+    }
+    .ticket-header p {
+      font-size: 13px;
+    }
+
+    .ticket-info {
+      margin-bottom: 10px;
+      line-height: 1.5;
+    }
+    .ticket-info p {
+      margin: 4px 0;
+    }
+    .label {
+      font-weight: bold;
+    }
+    .amounts {
+      margin-top: 10px;
+      margin-bottom: 10px;
+      line-height: 1.5;
+    }
+    .amounts p {
+      margin: 4px 0;
+    }
+    .transaction-code {
+      text-align: center;
+      font-weight: bold;
+      margin: 15px 0;
+    }
+    .barcode {
+      text-align: center;
+      margin: 15px 0;
+    }
+    .barcode img {
+      width: 220px; /* adjust as needed */
+      height: auto;
+    }
+    .footer {
+      font-size: 12px;
+      margin-top: 15px;
+    }
+    .footer ol {
+      padding-left: 20px;
+    }
+    .footer ol li {
+      margin-bottom: 5px;
+    }
+  </style>
+</head>
+<body>
+  <div class="ticket-container">
+    <!-- HEADER -->
+    <div class="ticket-header">
+      <h2>{{theater.companyName}}</h2>
+      <p>{{theater.brandName}}</p>
+      <p>{{theater.address}}</p>
+      <p><strong>Tax Invoice</strong></p>
+    </div>
+
+    <!-- TICKET DETAILS -->
+    <div class="ticket-info">
+      <p><span class="label">S.No:</span> {{ticketDetails.serialNumber}}</p>
+      <p><span class="label">Vat:</span> {{ticketDetails.vatNumber}}</p>
+      <p><span class="label">Movie:</span> {{ticketDetails.movie}} {{#if ticketDetails.format}}- {{ticketDetails.format}}{{/if}}</p>
+      <p><span class="label">Screen:</span> {{ticketDetails.screen}}</p>
+      <p><span class="label">Type:</span> {{ticketDetails.seatType}}</p>
+      <p><span class="label">Date:</span> {{ticketDetails.date}}</p>
+      <p><span class="label">Time:</span> {{ticketDetails.time}}</p>
+      <p><span class="label">Seat No:</span> {{ticketDetails.seatNumbers}}</p>
+    </div>
+
+    <!-- AMOUNTS -->
+    <div class="amounts">
+      <p><span class="label">Entrance Fee:</span> {{ticketDetails.entranceFee}}</p>
+      <p><span class="label">Local Tax(4%):</span> {{ticketDetails.localTax}}</p>
+      <p><span class="label">VAT(13%):</span> {{ticketDetails.vatAmount}}</p>
+      <p><span class="label">Total Cost:</span> {{ticketDetails.totalCost}}</p>
+    </div>
+
+    <!-- TRANSACTION CODE -->
+    <div class="transaction-code">
+      {{transactionCode}}
+    </div>
+
+    <!-- BARCODE -->
+    <div class="barcode">
+      <!-- If you have an actual barcode image URL or a data URI, place it here -->
+      <img src="{{barcodeImageUrl}}" alt="Barcode" />
+    </div>
+
+    <!-- FOOTER / TERMS -->
+    <div class="footer">
+      <ol>
+        <li>Tickets once sold cannot be refunded, transferred or exchanged.</li>
+        <li>Lost, stolen or damaged tickets will not be replaced.</li>
+        <li>Seat allocation cannot be altered after purchase.</li>
+      </ol>
+      <p>{{issuanceDate}} Enjoy your movie at {{theater.brandName}}</p>
+    </div>
+  </div>
+</body>
+</html>
