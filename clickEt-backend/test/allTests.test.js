@@ -3,7 +3,7 @@ import { expect } from "chai";
 import { describe, it } from "mocha";
 
 
-const server = "http://localhost:8080/api/v1"; 
+const server = "http://localhost:5000/api/v1"; 
 
 let authToken;
 
