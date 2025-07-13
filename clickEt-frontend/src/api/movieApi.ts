@@ -34,7 +34,7 @@ export const useAddMovie = () => {
     mutationFn: addMovie,
     onSuccess: () => {
       toast.success("Movie Added Successfully", {
-        className: "text-white border-success", // Tailwind classes for success toast
+        className: "text-white border-success", 
       });
 
       setTimeout(() => {
