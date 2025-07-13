@@ -10,7 +10,7 @@ import {
 
 export const useCreateHall = () => {
   const queryClient = useQueryClient();
-
+//query
   return useMutation<CreateHallResponse, Error, CreateHallRequest>({
     mutationFn: (data) => hallService.createHall(data),
     onSuccess: () => {
