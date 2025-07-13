@@ -51,10 +51,13 @@ export async function addMovie(credentials: MovieFormValues) {
   const payload = {
     ...credentials,
     releaseDate: format(credentials.releaseDate, "yyyy-MM-dd"),
+    duration_min: Number(credentials.duration_min), // ✅ Force number
   };
+
   const { data } = await axiosInstance.post("/movie/add", payload);
   return data;
 }
+
 
 export async function fetchMovieBySlug(slug: string) {
   try {
