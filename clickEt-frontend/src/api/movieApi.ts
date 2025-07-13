@@ -18,7 +18,7 @@ export const useFetchAllMoviesByStatus = (variant: string) => {
 };
 export const useFetchAllMovies = () => {
   return useQuery<Movie[], Error>({
-    queryKey: ["movies"], // Unique key for the query
+    queryKey: ["movies"], 
     queryFn: () => fetchAllMovies(), // Use the service function
   });
 };
