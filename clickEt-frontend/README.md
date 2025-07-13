@@ -54,4 +54,4 @@ cd ClickEt-frontend
 npm install
 
 # Run the application
-npm run dev:frontend
+npm run dev
