@@ -37,7 +37,7 @@ export const useDeleteTheatre = () => {
       toast.success("Distributor deleted successfully", {
         className: "text-white border-success",
       });
-      // Invalidate and refetch the distributors list
+     
       queryClient.invalidateQueries({ queryKey: ["movies"] });
     },
     onError: (error: any) => {
