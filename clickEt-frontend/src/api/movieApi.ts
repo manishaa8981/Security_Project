@@ -19,7 +19,7 @@ export const useFetchAllMoviesByStatus = (variant: string) => {
 export const useFetchAllMovies = () => {
   return useQuery<Movie[], Error>({
     queryKey: ["movies"], 
-    queryFn: () => fetchAllMovies(), // Use the service function
+    queryFn: () => fetchAllMovies(), 
   });
 };
 export const useFetchMovieBySlug = (slug: string) => {
