@@ -17,7 +17,7 @@ export const useLogin = () => {
     mutationFn: loginUser,
     onSuccess: () => {
       toast.success("Login successful", {
-        className: "text-white border-success", // Tailwind classes for success toast
+        className: "text-white border-success", 
       });
 
       setTimeout(() => {
@@ -26,7 +26,7 @@ export const useLogin = () => {
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.message || "Login failed", {
-        className: "bg-error text-white border-error", // Tailwind classes for error toast
+        className: "bg-error text-white border-error", 
       });
     },
   });
