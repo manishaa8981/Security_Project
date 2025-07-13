@@ -30,7 +30,7 @@ export const useFetchScreeningsByMovie = (movieId: string) => {
   return useQuery({
     queryKey: ["screenings", "byMovie", movieId],
     queryFn: () => fetchScreeningsByMovie(movieId),
-    // Don't run the query if movieId is empty
+    
     enabled: !!movieId,
   });
 };
