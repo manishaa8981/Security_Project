@@ -24,7 +24,7 @@ export const useFetchAllMovies = () => {
 };
 export const useFetchMovieBySlug = (slug: string) => {
   return useQuery<Movie, Error>({
-  queryKey: ["movies", slug], // Unique key for the query
+  queryKey: ["movies", slug], 
     queryFn: () => fetchMovieBySlug(slug), // Use the service function
   });
 };
