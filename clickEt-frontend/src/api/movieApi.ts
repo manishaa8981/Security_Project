@@ -43,7 +43,7 @@ export const useAddMovie = () => {
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.message || "Adding Movie failed", {
-        className: "bg-error text-white border-error", // Tailwind classes for error toast
+        className: "bg-error text-white border-error", 
       });
     },
   });
