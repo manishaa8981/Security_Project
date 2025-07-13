@@ -32,7 +32,7 @@ export const useInitiateKhaltiPayment = () => {
       queryKey: ["khalti-payment", pidx],
       queryFn: () => paymentService.getKhaltiPaymentStatus(pidx as string),
       enabled: !!pidx, // Only run if pidx is available
-      refetchInterval: 3000, // Poll every 3 seconds while checking payment status
+      refetchInterval: 3000, 
     });
   };
   export const useFetchAllPayments = () => {
