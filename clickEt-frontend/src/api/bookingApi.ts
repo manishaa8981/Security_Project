@@ -31,7 +31,7 @@ export const useGetScreeningDetails = (screeningId: string) => {
   return useQuery({
     queryKey: ["screening", screeningId],
     queryFn: () => bookingService.getScreeningDetails(screeningId),
-    refetchInterval: 5000, // Poll every 5 seconds
+    refetchInterval: 5000,
   });
 };
 
@@ -74,8 +74,8 @@ export const useReleaseHold = () => {
 
 export const useFetchAllBookings = () => {
   return useQuery<BookingResponse[], Error>({
-    queryKey: ["bookings"], // Unique key for the query
-    queryFn: () => bookingService.fetchAllBookings(), // Use the service function
+    queryKey: ["bookings"], 
+    queryFn: () => bookingService.fetchAllBookings(), 
   });
 };
 export const useFetchBookingHistory = () => {
