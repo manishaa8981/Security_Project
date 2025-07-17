@@ -35,23 +35,60 @@ const userSchema = new mongoose.Schema(
     },
     profile_URL: {
       type: String,
-      unique: true,
+      required: false,
+      unique: false,
       default: null,
     },
     password_reset_Token: { type: String, default: null },
     password_reset_expiry: { type: Date, default: null },
     refresh_token: { type: String, default: null },
     refresh_token_expiry: { type: Date, default: null },
+    password: {
+      type: String,
+      required: true,
+      minlength: 12,
+    },
+
+    password_last_changed: {
+      type: Date,
+      default: Date.now, // on first creation
+    },
+
+    password_history: {
+      type: [String], // array of previous password hashes
+      default: [],
+    },
+    login_attempts: {
+      type: Number,
+      default: 0,
+    },
+    lock_until: {
+      type: Date,
+      default: null,
+    },
   },
+
   { timestamps: true }
 );
 
 userSchema.pre("save", async function (next) {
-  if (!this.isModified("password")) {
-    next();
-  }
+  if (!this.isModified("password")) return next();
+
+  // Hash the new password
   const salt = await bcrypt.genSalt(10);
-  this.password = await bcrypt.hash(this.password, salt);
+  const hashed = await bcrypt.hash(this.password, salt);
+
+  // Add old password to history (but only if it's not a new user)
+  if (this.isNew === false && this.password) {
+    if (this.password_history.length >= 3) {
+      this.password_history.shift(); // keep last 3
+    }
+    this.password_history.push(this.password); // store current before replace
+  }
+
+  this.password = hashed;
+  this.password_last_changed = new Date();
+
   next();
 });
 
@@ -98,6 +135,28 @@ userSchema.methods.generateRecoveryToken = async function () {
   this.password_reset_expiry = Date.now() + 15 * 60 * 1000;
   return resetToken;
 };
+
+userSchema.methods.isLocked = function () {
+  return this.lock_until && this.lock_until > Date.now();
+};
+
+userSchema.methods.incrementLoginAttempts = async function () {
+  this.login_attempts += 1;
+
+  if (this.login_attempts >= 5) {
+    // Lock for 15 minutes
+    this.lock_until = Date.now() + 15 * 60 * 1000;
+  }
+
+  await this.save({ validateBeforeSave: false });
+};
+
+userSchema.methods.resetLoginAttempts = async function () {
+  this.login_attempts = 0;
+  this.lock_until = null;
+  await this.save({ validateBeforeSave: false });
+};
+
 
 const User = mongoose.model("users", userSchema);
 
