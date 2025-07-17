@@ -1,12 +1,6 @@
 // src/routes/userRoute.js
 import express from "express";
-import {
-  authValidationRules,
-  registrationValidationRules,
-  forgetValidationRules,
-  resetValidationRules,
-} from "../middleware/validation/authValidation.js";
-import { commonlyUsedValidationResult } from "../utils/prettyValidationResult.js";
+import multer from "multer";
 import {
   checkExistingAuthCredentials,
   deleteUser,
@@ -20,8 +14,16 @@ import {
   uploadProfileImage,
 } from "../controller/authController.js";
 import { protectRoute } from "../middleware/auth/routeProtection.js";
+import { verifyAccessToken } from "../middleware/authMiddleware.js";
+import { checkRole } from "../middleware/roleMiddleware.js";
+import {
+  authValidationRules,
+  forgetValidationRules,
+  registrationValidationRules,
+  resetValidationRules,
+} from "../middleware/validation/authValidation.js";
 import { resetLimiter } from "../utils/emailUtils.js";
-import multer from "multer";
+import { commonlyUsedValidationResult } from "../utils/prettyValidationResult.js";
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -64,6 +66,11 @@ router.patch(
   uploadProfileImage
 );
 router.post("/logout", protectRoute(), initLogOut);
-router.delete("/delete/:user_name", deleteUser);
-
+// router.delete("/delete/:user_name", deleteUser);
+router.delete(
+  "/delete/:user_name",
+  verifyAccessToken,
+  checkRole(["ADMIN"]),
+  deleteUser
+);
 export default router;
