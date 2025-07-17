@@ -1,21 +1,30 @@
 // src/controller/authController.js
-
 import User from "../models/userModel.js";
-import { setTokenCookie, hashCrypto } from "../utils/cookieUtil.js";
+import { hashCrypto, setTokenCookie } from "../utils/cookieUtil.js";
 import {
   createResetUrl,
   getPasswordResetTemplate,
   sendEmail,
 } from "../utils/emailUtils.js";
-import { getUserIdFromToken, isValidObjectId } from "../utils/tokenUtils.js";
 import {
   deleteImageFromCloudinary,
   processAndUploadImages,
 } from "../utils/imageUtils/cloudinaryUtils.js";
+import { validatePasswordPolicy } from "../utils/securityUtils/validatePassword.js";
+import { getUserIdFromToken, isValidObjectId } from "../utils/tokenUtils.js";
 
 export async function initRegistration(request, response) {
   const registrationCredentials = request.body;
-
+  //  Validate password policy
+  const { valid, errors } = validatePasswordPolicy(
+    registrationCredentials.password
+  );
+  if (!valid) {
+    return response.status(400).json({
+      message: "Password does not meet security requirements.",
+      errors,
+    });
+  }
   try {
     const user = await User.create(registrationCredentials);
 
@@ -25,7 +34,6 @@ export async function initRegistration(request, response) {
     setTokenCookie(response, "refresh_token", refreshToken);
 
     user.password = undefined;
-    
 
     return response.status(201).json({
       message: "User created successfully",
@@ -47,23 +55,40 @@ export async function initAuthentication(request, response) {
       $or: [{ user_name }, { email: user_name }],
     });
 
-    if (user) {
-      const authResult = await user.comparePassword(password);
-      if (authResult) {
-        const accessToken = await user.generateJWTToken();
-        const refreshToken = await user.generateRefreshToken();
+    if (!user) {
+      return response
+        .status(404)
+        .json({ message: "Invalid Account credentials" });
+    }
 
-        setTokenCookie(response, "refresh_token", refreshToken);
-        setTokenCookie(response, "access_token", accessToken);
+    if (user.isLocked()) {
+      return response.status(423).json({
+        message:
+          "Account temporarily locked due to multiple failed attempts. Try again later.",
+      });
+    }
 
-        return response.status(200).json({
-          message: "Login Successful",
-          accessToken: accessToken,
-          refreshToken: refreshToken,
-        });
-      }
+    const authResult = await user.comparePassword(password);
+    if (!authResult) {
+      await user.incrementLoginAttempts();
       return response.status(401).json({ message: "Invalid Password" });
     }
+
+    await user.resetLoginAttempts(); //  Reset on success
+
+    // Proceed with issuing tokens
+    const accessToken = await user.generateJWTToken();
+    const refreshToken = await user.generateRefreshToken();
+
+    setTokenCookie(response, "refresh_token", refreshToken);
+    setTokenCookie(response, "access_token", accessToken);
+
+    return response.status(200).json({
+      message: "Login Successful",
+      accessToken,
+      refreshToken,
+    });
+
     return response
       .status(404)
       .json({ message: "Invalid Account credentials" });
@@ -170,17 +195,30 @@ export async function resetPassword(request, response) {
   });
 
   if (!user) {
-    response.status(401).json({
+    return response.status(401).json({
       message: "Invalid or Expired reset link",
     });
   }
 
+  //  Check password reuse BEFORE updating the user password field
+  const isReused = user.password_history.some((oldHash) =>
+    bcrypt.compareSync(password, oldHash)
+  );
+
+  if (isReused) {
+    return response.status(400).json({
+      message: "You cannot reuse a recent password. Please choose a new one.",
+    });
+  }
+
+  //  Now assign and update password + reset token fields
   user.password = password;
   user.password_reset_Token = null;
   user.password_reset_expiry = null;
+
   await user.save();
 
-  response.status(200).json({
+  return response.status(200).json({
     success: true,
     message: "Password reset successful",
   });
@@ -278,7 +316,7 @@ export async function listAllUsers(request, response) {
 export async function deleteUser(request, response) {
   try {
     const { user_name } = request.params;
-    
+
     const user = await User.findOneAndDelete({ user_name });
 
     if (!user) {
@@ -288,10 +326,11 @@ export async function deleteUser(request, response) {
     return response.status(200).json({ message: "User deleted successfully" });
   } catch (error) {
     console.error(`Delete User Error: ${error.message}`);
-    return response.status(500).json({ message: "Internal Server Error", error: error.message });
+    return response
+      .status(500)
+      .json({ message: "Internal Server Error", error: error.message });
   }
 }
-
 
 export async function uploadProfileImage(request, response) {
   const token = request.cookies.access_token;
@@ -336,6 +375,8 @@ export async function getUserProfile(request, response) {
     if (!user) return response.status(404).json({ message: "User not found" });
     response.status(200).json(user);
   } catch (error) {
-    response.status(500).json({ message: "Server error", error: error.message });
+    response
+      .status(500)
+      .json({ message: "Server error", error: error.message });
   }
 }
