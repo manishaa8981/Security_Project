@@ -1,6 +1,9 @@
 // src/pages/auth/RegistrationPage.tsx
 import * as React from "react";
+// @ts-ignore
+import zxcvbn from "zxcvbn";
 
+import { Button } from "@/components/shadcn/button";
 import { Card, CardContent, CardHeader } from "@/components/shadcn/card";
 import {
   Form,
@@ -10,24 +13,24 @@ import {
   FormMessage,
 } from "@/components/shadcn/form";
 import { Input } from "@/components/shadcn/input";
-import { Button } from "@/components/shadcn/button";
 import { Label } from "@/components/shadcn/label";
 
 import { Eye, EyeOff } from "lucide-react";
 
 import { useForm } from "react-hook-form";
 
-import { zodResolver } from "@hookform/resolvers/zod";
 import {
   RegistrationFormSchema,
   RegistrationFormValues,
 } from "@/lib/formSchemas/authFormSchema";
+import { zodResolver } from "@hookform/resolvers/zod";
 
 import { Link } from "react-router-dom";
 
 import { useRegister } from "@/api/authApi";
 
 const RegistrationPage = () => {
+  const [passwordStrength, setPasswordStrength] = React.useState<number>(0);
   const registerMutation = useRegister();
   const [showPassword, setShowPassword] = React.useState(false);
   const form = useForm<RegistrationFormValues>({
@@ -125,6 +128,12 @@ const RegistrationPage = () => {
                           type={showPassword ? "text" : "password"}
                           placeholder="Enter your password"
                           {...field}
+                          onChange={(e) => {
+                            const password = e.target.value;
+                            const result = zxcvbn(password);
+                            setPasswordStrength(result.score); // score from 0 (weak) to 4 (strong)
+                            field.onChange(password); // update react-hook-form value
+                          }}
                         />
                         <Button
                           type="button"
@@ -140,12 +149,39 @@ const RegistrationPage = () => {
                           )}
                         </Button>
                       </div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        Strength:{" "}
+                        {
+                          ["Very Weak", "Weak", "Fair", "Good", "Strong"][
+                            passwordStrength
+                          ]
+                        }
+                      </div>
+                      <div className="h-1 mt-1 rounded-full bg-muted relative">
+                        <div
+                          className={`h-full rounded-full ${
+                            [
+                              "bg-red-500",
+                              "bg-orange-400",
+                              "bg-yellow-400",
+                              "bg-green-400",
+                              "bg-green-600",
+                            ][passwordStrength]
+                          }`}
+                          style={{ width: `${(passwordStrength + 1) * 20}%` }}
+                        />
+                      </div>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
+
                 <div className="mx-auto flex flex-col gap-6">
-                  <Button type="submit" disabled={registerMutation.isPending} className="px-10">
+                  <Button
+                    type="submit"
+                    disabled={registerMutation.isPending}
+                    className="px-10"
+                  >
                     Register
                   </Button>
 
