@@ -66,6 +66,14 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    mfa_secret: {
+      type: String,
+      default: null,
+    },
+    mfa_enabled: {
+      type: Boolean,
+      default: false,
+    },
   },
 
   { timestamps: true }
@@ -156,7 +164,6 @@ userSchema.methods.resetLoginAttempts = async function () {
   this.lock_until = null;
   await this.save({ validateBeforeSave: false });
 };
-
 
 const User = mongoose.model("users", userSchema);
 
