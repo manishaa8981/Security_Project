@@ -149,4 +149,10 @@ export const routeConfig: IRouterConfig = {
     isProtected: true,
     componentLocation: "pages/BookingPage",
   },
+  EnableTOTPPage: {
+    path: "/security/enable-totp",
+    layout: ELayouts.CLIENT,
+    isProtected: true,
+    componentLocation: "pages/security/EnableTOTPPage",
+  },
 };
