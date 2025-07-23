@@ -8,7 +8,7 @@ import {
   sendResetEmail,
   uploadProfileImage,
 } from "@/service/authService";
-
+import axios from "axios";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 
@@ -31,6 +31,28 @@ export const useLogin = () => {
     },
   });
 };
+
+export const useTOTPVerify = () => {
+  return useMutation({
+    mutationFn: async ({ userId, token }: { userId: string; token: string }) => {
+      return await instance.post("/mfa/totp/verify", { userId, token });
+    },
+    onSuccess: () => {
+      toast.success("TOTP Verified. Redirecting...", {
+        className: "text-white border-success",
+      });
+      setTimeout(() => {
+        window.location.href = "/";
+      }, 1500);
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || "TOTP Verification Failed", {
+        className: "bg-error text-white border-error",
+      });
+    },
+  });
+};
+
 export const useRegister = () => {
   return useMutation({
     mutationFn: registerUser,
@@ -113,3 +135,11 @@ export const useLogout = () => {
     },
   });
 };
+
+
+const instance = axios.create({
+  baseURL: "http://localhost:5000/api/v1",
+  withCredentials: true,
+});
+
+export default instance;
