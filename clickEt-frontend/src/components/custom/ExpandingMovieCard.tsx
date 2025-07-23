@@ -1,11 +1,11 @@
-import React, { useState, useCallback, useMemo } from "react";
-import { ColorExtractor } from "react-color-extractor";
-import { format } from "date-fns";
-import { Ticket } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 import InteractiveHoverButton from "@/components/shadcn/interactive-hover-button";
 import { Movie } from "@/interfaces/IMovie";
-
+import { format } from "date-fns";
+import { FastAverageColor } from "fast-average-color";
+import { Ticket } from "lucide-react";
+import * as React from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 interface ExpandingCardProps {
   staticContentWidth?: string;
   expandedContentWidth?: string;
@@ -24,6 +24,7 @@ const ExpandingCard: React.FC<ExpandingCardProps> = React.memo(
   }) => {
     const [isHovered, setIsHovered] = useState(false);
     const [dominantColor, setDominantColor] = useState("#ffffff");
+    const imgRef = useRef<HTMLImageElement | null>(null);
     const navigate = useNavigate();
 
     const getLuminance = useCallback((hexColor: string) => {
@@ -40,7 +41,7 @@ const ExpandingCard: React.FC<ExpandingCardProps> = React.memo(
         return luminance > 0.5 ? "#000000" : "#ffffff";
       },
       [getLuminance]
-    ); // Add getLuminance as dependency
+    );
 
     const styles = useMemo(
       () => ({
@@ -77,9 +78,19 @@ const ExpandingCard: React.FC<ExpandingCardProps> = React.memo(
         getContrastColor,
       ]
     );
-
-    const getColors = useCallback((colors: string[]) => {
-      setDominantColor(colors[0] || "#ffffff");
+    const onImageLoad = useCallback(() => {
+      if (imgRef.current) {
+        const fac = new FastAverageColor();
+        fac
+          .getColorAsync(imgRef.current)
+          .then((color) => {
+            setDominantColor(color.hex); // color.hex = "#rrggbb"
+          })
+          .catch((e) => {
+            console.warn("Color extraction failed:", e);
+            setDominantColor("#ffffff"); // fallback
+          });
+      }
     }, []);
 
     const handleMouseEnter = useCallback(() => setIsHovered(true), []);
@@ -142,14 +153,15 @@ const ExpandingCard: React.FC<ExpandingCardProps> = React.memo(
           className="flex-shrink-0 h-full bg-gray-500"
           style={styles.image}
         >
-          <ColorExtractor getColors={getColors}>
-            <img
-              src={movie.posterURL.sm}
-              alt={movie.name}
-              className="w-full h-full object-cover"
-              loading="lazy"
-            />
-          </ColorExtractor>
+          <img
+            ref={imgRef}
+            src={movie.posterURL.sm}
+            alt={movie.name}
+            className="w-full h-full object-cover"
+            loading="lazy"
+            crossOrigin="anonymous"
+            onLoad={onImageLoad}
+          />
         </div>
         <div
           data-testid="movie-card-expanded-content"
