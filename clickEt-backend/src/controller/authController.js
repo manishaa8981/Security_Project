@@ -1,4 +1,5 @@
 // src/controller/authController.js
+import axios from "axios";
 import User from "../models/userModel.js";
 import { hashCrypto, setTokenCookie } from "../utils/cookieUtil.js";
 import {
@@ -48,9 +49,34 @@ export async function initRegistration(request, response) {
 }
 
 export async function initAuthentication(request, response) {
-  const { user_name, password } = request.body;
+  const { user_name, password, captchaToken } = request.body;
+  //  1. CAPTCHA must be verified before anything else
+  if (!captchaToken) {
+    return response.status(400).json({ message: "CAPTCHA token missing" });
+  }
+  const secretKey = process.env.RECAPTCHA_SECRET;
+  const verifyUrl = `https://www.google.com/recaptcha/api/siteverify`;
 
   try {
+    const captchaRes = await axios.post(verifyUrl, null, {
+      params: {
+        secret: process.env.RECAPTCHA_SECRET,
+        response: captchaToken,
+      },
+    });
+
+    if (!captchaRes.data.success) {
+      return response
+        .status(403)
+        .json({ message: "CAPTCHA verification failed" });
+    }
+  } catch (captchaError) {
+    console.error("CAPTCHA Error:", captchaError.message);
+    return response.status(500).json({ message: "Failed to verify CAPTCHA" });
+  }
+
+  try {
+    //  2. Find user
     const user = await User.findOne({
       $or: [{ user_name }, { email: user_name }],
     });
@@ -68,15 +94,25 @@ export async function initAuthentication(request, response) {
       });
     }
 
+    //  3. Verify password
     const authResult = await user.comparePassword(password);
     if (!authResult) {
       await user.incrementLoginAttempts();
       return response.status(401).json({ message: "Invalid Password" });
     }
 
-    await user.resetLoginAttempts(); //  Reset on success
+    await user.resetLoginAttempts(); // reset on success
 
-    // Proceed with issuing tokens
+    //  4. MFA Check
+    if (user.mfa_enabled) {
+      return response.status(206).json({
+        message: "TOTP Required",
+        mfaRequired: true,
+        userId: user._id.toString(),
+      });
+    }
+
+    //  5. Issue tokens
     const accessToken = await user.generateJWTToken();
     const refreshToken = await user.generateRefreshToken();
 
@@ -88,10 +124,6 @@ export async function initAuthentication(request, response) {
       accessToken,
       refreshToken,
     });
-
-    return response
-      .status(404)
-      .json({ message: "Invalid Account credentials" });
   } catch (error) {
     console.error(`Authentication Error: ${error.message}`);
     return response
