@@ -7,6 +7,34 @@ cloudinary.config({
   secure: true,
 });
 
+// export const convertImagesToWebP = async (imageBuffers, options = {}) => {
+//   const defaultOptions = {
+//     quality: 80,
+//     maxWidth: 2000,
+//     maxHeight: 2000,
+//   };
+
+//   const config = { ...defaultOptions, ...options };
+//   try {
+//     const webpBuffers = await Promise.all(
+//       imageBuffers.map(async (buffer) => {
+//         return sharp(buffer)
+//           .resize(config.maxWidth, config.maxHeight, {
+//             fit: "inside",
+//             withoutEnlargement: true,
+//           })
+//           .toFormat("webp", { quality: config.quality })
+//           .toBuffer();
+//       })
+//     );
+//     return webpBuffers;
+//   } catch (error) {
+//     console.error("Error converting images to WebP:", error);
+//     throw error;
+//   }
+// };
+import { fileTypeFromBuffer } from "file-type"; // ADD THIS
+
 export const convertImagesToWebP = async (imageBuffers, options = {}) => {
   const defaultOptions = {
     quality: 80,
@@ -15,9 +43,16 @@ export const convertImagesToWebP = async (imageBuffers, options = {}) => {
   };
 
   const config = { ...defaultOptions, ...options };
+
   try {
     const webpBuffers = await Promise.all(
-      imageBuffers.map(async (buffer) => {
+      imageBuffers.map(async (buffer, idx) => {
+        const fileType = await fileTypeFromBuffer(buffer);
+        const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+        if (!fileType || !allowedTypes.includes(fileType.mime)) {
+          throw new Error(`Invalid image format at index ${idx}`);
+        }
+
         return sharp(buffer)
           .resize(config.maxWidth, config.maxHeight, {
             fit: "inside",
@@ -27,6 +62,7 @@ export const convertImagesToWebP = async (imageBuffers, options = {}) => {
           .toBuffer();
       })
     );
+
     return webpBuffers;
   } catch (error) {
     console.error("Error converting images to WebP:", error);
@@ -109,3 +145,4 @@ export const deleteImageFromCloudinary = async (imageUrl) => {
     console.error("Error deleting image:", error);
   }
 };
+// hiii
