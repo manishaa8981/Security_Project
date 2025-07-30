@@ -9,6 +9,7 @@ import {
   initLogOut,
   initRegistration,
   initTokenRefresh,
+  listAllUsers,
   resetPassword,
   sendResetEmail,
   uploadProfileImage,
@@ -24,11 +25,13 @@ import {
 } from "../middleware/validation/authValidation.js";
 import { resetLimiter } from "../utils/emailUtils.js";
 import { commonlyUsedValidationResult } from "../utils/prettyValidationResult.js";
+import { loginLimiter, registerLimiter } from "../utils/rateLimiters.js";
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
 router.post(
   "/register",
+  registerLimiter,
   registrationValidationRules,
   commonlyUsedValidationResult,
   initRegistration
@@ -36,6 +39,7 @@ router.post(
 
 router.post(
   "/login",
+  loginLimiter,
   authValidationRules,
   commonlyUsedValidationResult,
   initAuthentication
@@ -72,5 +76,11 @@ router.delete(
   verifyAccessToken,
   checkRole(["ADMIN"]),
   deleteUser
+);
+router.get(
+  "/list-all-users",
+  verifyAccessToken,
+  checkRole(["ADMIN"]),
+  listAllUsers
 );
 export default router;

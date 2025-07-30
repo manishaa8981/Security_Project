@@ -66,32 +66,53 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
-    mfa_secret: {
-      type: String,
-      default: null,
-    },
-    mfa_enabled: {
-      type: Boolean,
-      default: false,
+    otp: { type: String },
+    otpExpires: { type: Date },
+    loginTimestamps: {
+      type: [Date],
+      default: [],
     },
   },
 
   { timestamps: true }
 );
 
+// userSchema.pre("save", async function (next) {
+//   if (!this.isModified("password")) return next();
+
+//   // Hash the new password
+//   const salt = await bcrypt.genSalt(10);
+//   const hashed = await bcrypt.hash(this.password, salt);
+
+//   // Add old password to history (but only if it's not a new user)
+//   if (this.isNew === false && this.password) {
+//     if (this.password_history.length >= 3) {
+//       this.password_history.shift(); // keep last 3
+//     }
+//     this.password_history.push(this.password); // store current before replace
+//   }
+
+//   this.password = hashed;
+//   this.password_last_changed = new Date();
+
+//   next();
+// });
 userSchema.pre("save", async function (next) {
   if (!this.isModified("password")) return next();
 
-  // Hash the new password
+  if (!this.password) {
+    return next(); // ✅ Skip if password is not being changed
+  }
+
   const salt = await bcrypt.genSalt(10);
   const hashed = await bcrypt.hash(this.password, salt);
 
-  // Add old password to history (but only if it's not a new user)
-  if (this.isNew === false && this.password) {
+  // Only save password history if not a new user
+  if (!this.isNew) {
     if (this.password_history.length >= 3) {
-      this.password_history.shift(); // keep last 3
+      this.password_history.shift();
     }
-    this.password_history.push(this.password); // store current before replace
+    this.password_history.push(this.password); // Save old before replacing
   }
 
   this.password = hashed;

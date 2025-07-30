@@ -13,6 +13,8 @@ import {
 } from "../utils/imageUtils/cloudinaryUtils.js";
 import { validatePasswordPolicy } from "../utils/securityUtils/validatePassword.js";
 import { getUserIdFromToken, isValidObjectId } from "../utils/tokenUtils.js";
+import crypto from "crypto";
+
 
 export async function initRegistration(request, response) {
   const registrationCredentials = request.body;
@@ -112,6 +114,10 @@ export async function initAuthentication(request, response) {
       });
     }
 
+    // Record login timestamp
+    user.loginTimestamps = user.loginTimestamps || [];
+    user.loginTimestamps.push(new Date());
+    await user.save();
     //  5. Issue tokens
     const accessToken = await user.generateJWTToken();
     const refreshToken = await user.generateRefreshToken();
@@ -216,46 +222,77 @@ export async function sendResetEmail(request, response) {
   }
 }
 
-export async function resetPassword(request, response) {
-  const { token, password } = request.body;
+// export async function resetPassword(request, response) {
+//   const { token, password } = request.body;
 
-  const hashedToken = hashCrypto(token);
+//   const hashedToken = hashCrypto(token);
 
-  const user = await User.findOne({
-    password_reset_Token: hashedToken,
-    password_reset_expiry: { $gt: Date.now() },
-  });
+//   const user = await User.findOne({
+//     password_reset_Token: hashedToken,
+//     password_reset_expiry: { $gt: Date.now() },
+//   });
 
-  if (!user) {
-    return response.status(401).json({
-      message: "Invalid or Expired reset link",
+//   if (!user) {
+//     return response.status(401).json({
+//       message: "Invalid or Expired reset link",
+//     });
+//   }
+
+//   //  Check password reuse BEFORE updating the user password field
+//   const isReused = user.password_history.some((oldHash) =>
+//     bcrypt.compareSync(password, oldHash)
+//   );
+
+//   if (isReused) {
+//     return response.status(400).json({
+//       message: "You cannot reuse a recent password. Please choose a new one.",
+//     });
+//   }
+
+//   //  Now assign and update password + reset token fields
+//   user.password = password;
+//   user.password_reset_Token = null;
+//   user.password_reset_expiry = null;
+
+//   await user.save();
+
+//   return response.status(200).json({
+//     success: true,
+//     message: "Password reset successful",
+//   });
+// }
+export const resetPassword = async (req, res) => {
+  try {
+    const { token, password } = req.body;
+
+    if (!token) {
+      return res.status(400).json({ message: "Token is required" });
+    }
+
+    // Hash the token before lookup
+    const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+
+    const user = await User.findOne({
+      password_reset_Token: hashedToken,
+      password_reset_expiry: { $gt: Date.now() }, // Not expired
     });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    user.password = password;
+    user.password_reset_Token = undefined;
+    user.password_reset_expiry = undefined;
+
+    await user.save();
+
+    return res.status(200).json({ message: "Password reset successful" });
+  } catch (err) {
+    console.error("Reset password error:", err);
+    return res.status(500).json({ message: "Internal Server Error" });
   }
-
-  //  Check password reuse BEFORE updating the user password field
-  const isReused = user.password_history.some((oldHash) =>
-    bcrypt.compareSync(password, oldHash)
-  );
-
-  if (isReused) {
-    return response.status(400).json({
-      message: "You cannot reuse a recent password. Please choose a new one.",
-    });
-  }
-
-  //  Now assign and update password + reset token fields
-  user.password = password;
-  user.password_reset_Token = null;
-  user.password_reset_expiry = null;
-
-  await user.save();
-
-  return response.status(200).json({
-    success: true,
-    message: "Password reset successful",
-  });
-}
-
+};
 export async function initAuthStatus(request, response) {
   try {
     const token = request.cookies.access_token;
@@ -338,7 +375,18 @@ export async function checkExistingAuthCredentials(request, response) {
 export async function listAllUsers(request, response) {
   try {
     const users = await User.find({});
-    return response.status(200).json({ users });
+    // Expose loginTimestamps in the response
+    const usersWithLogins = users.map((u) => ({
+      _id: u._id,
+      full_name: u.full_name,
+      user_name: u.user_name,
+      email: u.email,
+      phone_number: u.phone_number,
+      role: u.role,
+      profile_URL: u.profile_URL,
+      loginTimestamps: u.loginTimestamps || [],
+    }));
+    return response.status(200).json({ users: usersWithLogins });
   } catch (error) {
     console.error("Error retrieving users:", error.message);
     return response.status(500).json({ message: "Internal Server Error" });
@@ -364,40 +412,59 @@ export async function deleteUser(request, response) {
   }
 }
 
-export async function uploadProfileImage(request, response) {
-  const token = request.cookies.access_token;
-  if (!token) {
-    return response.status(401).json({ message: "Token not available" });
-  }
-
-  const userId = getUserIdFromToken(token);
-
-  // Validate the decoded ID
-  if (!isValidObjectId(userId)) {
-    return response.status(401).json({ message: "Invalid user ID" });
-  }
-
+export async function uploadProfileImage(req, res) {
   try {
-    // Check if a file was uploaded
-    if (!request.file) {
-      return response.status(400).json({ message: "No image provided" });
+    const token = req.cookies.access_token;
+    if (!token) {
+      return res.status(401).json({ message: "Authentication token missing" });
     }
 
-    const imageUrls = await processAndUploadImages(
-      [request.file.buffer],
+    const userId = getUserIdFromToken(token);
+    if (!isValidObjectId(userId)) {
+      return res.status(401).json({ message: "Invalid user ID" });
+    }
+
+    // Ensure file is uploaded
+    if (!req.file || !req.file.buffer) {
+      return res.status(400).json({ message: "No image file provided" });
+    }
+
+    // Check image size limit (e.g., 2MB)
+    const maxSize = 2 * 1024 * 1024;
+    if (req.file.size > maxSize) {
+      return res.status(413).json({ message: "File too large (max 2MB)" });
+    }
+
+    // Validate MIME type
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+    if (!allowedTypes.includes(req.file.mimetype)) {
+      return res.status(415).json({ message: "Unsupported image type" });
+    }
+
+    // Upload new image
+    const [imageUrl] = await processAndUploadImages(
+      [req.file.buffer],
       "profileImages"
     );
 
-    // Update user profile URL in the database
-    await User.findByIdAndUpdate(userId, { profile_URL: imageUrls[0] });
-    await deleteImageFromCloudinary(request.body.currentImageUrl);
-    // Step 4: Return success response
-    return response.status(200).json({
+    // Delete old image (only if user owns it)
+    if (req.body.currentImageUrl) {
+      const user = await User.findById(userId);
+      if (user?.profile_URL === req.body.currentImageUrl) {
+        await deleteImageFromCloudinary(req.body.currentImageUrl);
+      }
+    }
+
+    // Save new profile image URL
+    await User.findByIdAndUpdate(userId, { profile_URL: imageUrl });
+
+    return res.status(200).json({
       message: "Profile image uploaded successfully",
+      profile_URL: imageUrl,
     });
-  } catch (error) {
-    console.error("Error uploading profile image:", error);
-    return response.status(500).json({ message: "Internal Server Error" });
+  } catch (err) {
+    console.error(" Image upload failed:", err);
+    return res.status(500).json({ message: "Internal Server Error" });
   }
 }
 
@@ -405,7 +472,10 @@ export async function getUserProfile(request, response) {
   try {
     const user = await User.findById(request.user.id).select("-password");
     if (!user) return response.status(404).json({ message: "User not found" });
-    response.status(200).json(user);
+    // Expose loginTimestamps in the response
+    const userObj = user.toObject();
+    userObj.loginTimestamps = user.loginTimestamps || [];
+    response.status(200).json(userObj);
   } catch (error) {
     response
       .status(500)
