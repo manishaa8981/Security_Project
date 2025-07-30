@@ -1,8 +1,6 @@
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
-import { useParams } from "react-router-dom";
 import { usePasswordReset } from "@/api/authApi";
+import { Button } from "@/components/shadcn/button";
+import { Card, CardContent, CardHeader } from "@/components/shadcn/card";
 import {
   Form,
   FormField,
@@ -10,10 +8,12 @@ import {
   FormMessage,
 } from "@/components/shadcn/form";
 import { Input } from "@/components/shadcn/input";
-import { Button } from "@/components/shadcn/button";
-import { Card, CardContent, CardHeader } from "@/components/shadcn/card";
-import * as React from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff } from "lucide-react";
+import * as React from "react";
+import { useForm } from "react-hook-form";
+import { useParams } from "react-router-dom";
+import * as z from "zod";
 
 const resetSchema = z
   .object({
@@ -46,7 +46,11 @@ const ResetPasswordPage = () => {
   });
   const resetMutation = usePasswordReset();
   const onSubmit = (data: z.infer<typeof resetSchema>) => {
-    resetMutation.mutate(data);
+    const payload = {
+      token: data.token,
+      password: data.password,
+    };
+    resetMutation.mutate(payload);
   };
 
   return (
@@ -78,9 +82,11 @@ const ResetPasswordPage = () => {
                           variant="ghost"
                           size="sm"
                           className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                          onClick={() => setShowPassword(!showPassword)}
+                          onClick={
+                            () => setShowConfirmPassword(!showConfirmPassword) // ✅ fix this
+                          }
                         >
-                          {showPassword ? (
+                          {showConfirmPassword ? ( // ✅ use this, not showPassword
                             <EyeOff className="h-4 w-4 text-muted-foreground" />
                           ) : (
                             <Eye className="h-4 w-4 text-muted-foreground" />

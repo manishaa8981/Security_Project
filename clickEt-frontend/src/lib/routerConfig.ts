@@ -85,6 +85,13 @@ export const routeConfig: IRouterConfig = {
     roles: [ERoles.ADMIN],
     componentLocation: "pages/admin/AdminPaymentsPage",
   },
+  AdminUsersPage: {
+    path: "/admin/users",
+    layout: ELayouts.ADMIN,
+    isProtected: true,
+    roles: [ERoles.ADMIN],
+    componentLocation: "pages/admin/AdminUsersPage",
+  },
 
   //==============================================  utility pages =====================================
 
@@ -149,10 +156,10 @@ export const routeConfig: IRouterConfig = {
     isProtected: true,
     componentLocation: "pages/BookingPage",
   },
-  EnableTOTPPage: {
-    path: "/security/enable-totp",
-    layout: ELayouts.CLIENT,
-    isProtected: true,
-    componentLocation: "pages/security/EnableTOTPPage",
+  VerifyOtpPage: {
+    path: "/verify",
+    layout: ELayouts.NA,
+    isProtected: false,
+    componentLocation: "pages/auth/VerifyOtpPage", 
   },
 };

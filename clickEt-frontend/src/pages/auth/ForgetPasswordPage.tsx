@@ -1,4 +1,4 @@
-// src/pages/auth/InitResetPage.tsx
+import { Button } from "@/components/shadcn/button";
 import { Card, CardContent, CardHeader } from "@/components/shadcn/card";
 import {
   Form,
@@ -8,35 +8,43 @@ import {
   FormMessage,
 } from "@/components/shadcn/form";
 import { Input } from "@/components/shadcn/input";
-import { Button } from "@/components/shadcn/button";
 import { Label } from "@/components/shadcn/label";
 
+import { useForgetPassword } from "@/api/authApi";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import { Link, useNavigate } from "react-router-dom";
+import { toast } from "sonner"; // or your preferred toast lib
 import { z } from "zod";
 
-import { useForm } from "react-hook-form";
-import { Link } from "react-router-dom";
-
-import { useForgetPassword } from "@/api/authApi";
-
-// Simplified form schema
 const FormSchema = z.object({
   email: z.string().email({ message: "Invalid email format." }),
 });
 
 const ForgetPasswordPage = () => {
+  const navigate = useNavigate();
+
   const forgetMutation = useForgetPassword();
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
     defaultValues: {
       email: "",
     },
-    mode: "onSubmit",
   });
-
-  function onSubmit(data: z.infer<typeof FormSchema>) {
-    forgetMutation.mutate(data);
-  }
+  const onSubmit = (data: z.infer<typeof FormSchema>) => {
+    forgetMutation.mutate(data, {
+      onSuccess: (res) => {
+        toast.success(res.message || "OTP sent to your email.");
+        // Navigate to OTP verification page, passing email as query or state
+        navigate("/verify", { state: { email: data.email } });
+      },
+      onError: (err: any) => {
+        const msg =
+          err?.response?.data?.message || "Failed to send OTP. Try again.";
+        toast.error(msg);
+      },
+    });
+  };
 
   return (
     <div className="w-full h-screen center bg-background dark:bg-dark_bg text-foreground">
@@ -45,13 +53,13 @@ const ForgetPasswordPage = () => {
           <CardHeader className="flex justify-between items-center p-4">
             <h2 className="text-2xl font-semibold">Password Reset Request</h2>
           </CardHeader>
-          <CardContent className="w-full flex flex-col gap-3 ">
+          <CardContent className="w-full flex flex-col gap-3">
             <Form {...form}>
               <form
                 onSubmit={form.handleSubmit(onSubmit)}
-                className="space-y-3 flex flex-col justify-center"
+                className="space-y-4 flex flex-col justify-center"
               >
-                {/* Email/Username Field */}
+                {/* Email Field */}
                 <FormField
                   control={form.control}
                   name="email"
@@ -67,23 +75,22 @@ const ForgetPasswordPage = () => {
                     </FormItem>
                   )}
                 />
-                <Label htmlFor="user-login">
-                  <Link to={"/login"}>
-                    <span className="underline">Remember Password?</span>
+
+                {/* Link */}
+                <Label htmlFor="user-login" className="text-sm">
+                  <Link to="/login" className="underline text-blue-600">
+                    Remember Password?
                   </Link>
                 </Label>
+
                 {/* Submit Button */}
-                <div className="mx-auto pt-5 flex flex-col gap-6">
+                <div className="mx-auto pt-5">
                   <Button
                     type="submit"
-                    className="mx-auto px-10"
+                    className="px-10"
                     disabled={forgetMutation.isPending}
                   >
-                    {forgetMutation.isPending ? (
-                      <span>Sending Reset Link</span> // Replace with a spinner or other loading indicator
-                    ) : (
-                      "Send Reset Link"
-                    )}
+                    {forgetMutation.isPending ? "Sending OTP..." : "Send OTP"}
                   </Button>
                 </div>
               </form>

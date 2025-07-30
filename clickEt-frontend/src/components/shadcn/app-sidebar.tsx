@@ -1,4 +1,3 @@
-import * as React from "react";
 import {
   AudioWaveform,
   BookOpen,
@@ -15,16 +14,14 @@ import {
   RectangleHorizontal,
   Settings2,
   SquareTerminal,
-
   TicketIcon,
-
   Video,
 } from "lucide-react";
+import * as React from "react";
 
 import { useAuth } from "@/hooks/useAuth";
 
 import { NavUser } from "@/components/shadcn/nav-user";
-import { TeamSwitcher } from "@/components/shadcn/team-switcher";
 import {
   Sidebar,
   SidebarContent,
@@ -38,6 +35,7 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/shadcn/sidebar";
+import { TeamSwitcher } from "@/components/shadcn/team-switcher";
 
 // This is sample data.
 const data = {
@@ -149,7 +147,6 @@ const data = {
         },
       ],
     },
-    
   ],
   projects: [
     {
@@ -171,7 +168,7 @@ const data = {
 };
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const  { user }  = useAuth();
+  const { user } = useAuth();
   const userData = {
     name: user?.full_name || "",
     email: user?.email || "",
@@ -214,8 +211,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       url: "/admin/payments",
       icon: IndianRupee,
     },
-  ]
-  
+    {
+      title: "Users",
+      url: "/admin/users",
+      icon: Bot,
+    },
+  ];
+
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>

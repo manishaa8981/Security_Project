@@ -4,7 +4,6 @@ import {
   DistributorLogoRequest,
   DistributorResponse,
 } from "@/interfaces/Idistributor";
-import { Hall } from "@/interfaces/IHalls";
 import { axiosInstance } from "@/utils/axiosInstance";
 
 export async function addDistributor(credentials: DistributorBase) {
@@ -39,9 +38,11 @@ export async function deleteDistributor(id: string) {
   return response.data;
 }
 
-export async function updateDistributor(updatedDistributorData) {
+export async function updateDistributor(
+  updatedDistributorData: DistributorBase
+) {
   const response = await axiosInstance.patch(
-    `/hall/update/${updatedDistributorData._id}`,
+    `/hall/update/${updatedDistributorData}`,
     updatedDistributorData
   );
   return response.data;

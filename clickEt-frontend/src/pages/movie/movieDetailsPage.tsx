@@ -1,13 +1,20 @@
-import { useEffect, useRef, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Volume2, VolumeX, Play, ChevronDown } from "lucide-react";
-import { Button } from "@/components/shadcn/button";
-import { MovieDetailsSkeleton } from "@/components/skeletons/movie";
 import { useFetchMovieBySlug } from "@/api/movieApi";
-import { useParams } from "react-router-dom";
-import { decodeHTMLEntities } from "@/utils/htmlDecoder";
 import { useFetchScreeningsByMovie } from "@/api/screeningApi";
 import SeatBooking from "@/components/pageComponents/booking/SeatBooking";
+import { Button } from "@/components/shadcn/button";
+import { MovieDetailsSkeleton } from "@/components/skeletons/movie";
+import { decodeHTMLEntities } from "@/utils/htmlDecoder";
+import * as DOMPurify from "dompurify";
+import { AnimatePresence, motion } from "framer-motion";
+import { ChevronDown, Play, Volume2, VolumeX } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { useParams } from "react-router-dom";
+
+declare global {
+  interface Window {
+    onYouTubeIframeAPIReady: () => void;
+  }
+}
 
 export default function MovieDetails() {
   const { slug } = useParams();
@@ -19,17 +26,25 @@ export default function MovieDetails() {
   const playerContainerRef = useRef<HTMLDivElement>(null);
   const [showSeats, setShowSeats] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [selectedTheatreId, setSelectedTheatreId] = useState<string | null>(null);
+  const [selectedTheatreId, setSelectedTheatreId] = useState<string | null>(
+    null
+  );
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [selectedHallId, setSelectedHallId] = useState<string | null>(null);
-  const [selectedScreeningId, setSelectedScreeningId] = useState<string | null>(null);
-  const [showTheatreDropdown, setShowTheatreDropdown] = useState<boolean>(false);
+  const [selectedScreeningId, setSelectedScreeningId] = useState<string | null>(
+    null
+  );
+  const [showTheatreDropdown, setShowTheatreDropdown] =
+    useState<boolean>(false);
   const [showHallDropdown, setShowHallDropdown] = useState<boolean>(false);
   const [isPlayerReady, setIsPlayerReady] = useState(false);
   const hasInteracted = useRef<boolean>(false);
 
-  const { data: movie, isLoading: isMovieLoading } = useFetchMovieBySlug(slug || "");
-  const { data: screenings, isLoading: isScreeningsLoading } = useFetchScreeningsByMovie(movie?._id || "");
+  const { data: movie, isLoading: isMovieLoading } = useFetchMovieBySlug(
+    slug || ""
+  );
+  const { data: screenings, isLoading: isScreeningsLoading } =
+    useFetchScreeningsByMovie(movie?._id || "");
 
   useEffect(() => {
     if (screenings && screenings.length > 0) {
@@ -67,20 +82,32 @@ export default function MovieDetails() {
   }, [selectedTime]);
 
   useEffect(() => {
-    if (selectedDate && selectedTheatreId && selectedTime && selectedHallId && screenings) {
+    if (
+      selectedDate &&
+      selectedTheatreId &&
+      selectedTime &&
+      selectedHallId &&
+      screenings
+    ) {
       const screening = screenings.find(
         (s) =>
           new Date(s.startTime).toDateString() === selectedDate &&
-          s.theatreId._id === selectedTheatreId &&
+          s.theatreId === selectedTheatreId &&
           formatTime(s.startTime) === selectedTime &&
-          s.hallId._id === selectedHallId
+          s.hallId === selectedHallId
       );
 
       if (screening) {
         setSelectedScreeningId(screening._id);
       }
     }
-  }, [selectedDate, selectedTheatreId, selectedTime, selectedHallId, screenings]);
+  }, [
+    selectedDate,
+    selectedTheatreId,
+    selectedTime,
+    selectedHallId,
+    screenings,
+  ]);
 
   useEffect(() => {
     if (!movie?.trailerURL) return;
@@ -215,8 +242,8 @@ export default function MovieDetails() {
     return urlParams.get("v");
   };
 
-  const formatTime = (dateString: string) => {
-    const date = new Date(dateString);
+  const formatTime = (input: string | Date) => {
+    const date = typeof input === "string" ? new Date(input) : input;
     return date.toLocaleTimeString("en-US", {
       hour: "numeric",
       minute: "2-digit",
@@ -224,8 +251,10 @@ export default function MovieDetails() {
     });
   };
 
-  const formatScreeningDate = (dateString: string) => {
-    const date = new Date(dateString);
+  const formatScreeningDate = (dateInput: string | Date) => {
+    const date =
+      typeof dateInput === "string" ? new Date(dateInput) : dateInput;
+
     const days = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
     const day = days[date.getDay()];
     const dayOfMonth = date.getDate();
@@ -281,7 +310,7 @@ export default function MovieDetails() {
 
     screenings.forEach((screening) => {
       if (new Date(screening.startTime).toDateString() === selectedDate) {
-        theatres.set(screening.theatreId._id, screening.theatreId);
+        theatres.set(screening.theatreId, screening.theatreId);
       }
     });
 
@@ -296,7 +325,7 @@ export default function MovieDetails() {
     screenings.forEach((screening) => {
       if (
         new Date(screening.startTime).toDateString() === selectedDate &&
-        screening.theatreId._id === selectedTheatreId
+        screening.theatreId === selectedTheatreId
       ) {
         times.add(formatTime(screening.startTime));
       }
@@ -310,17 +339,18 @@ export default function MovieDetails() {
   };
 
   const getHallsForSelectedTime = () => {
-    if (!selectedDate || !selectedTheatreId || !selectedTime || !screenings) return [];
+    if (!selectedDate || !selectedTheatreId || !selectedTime || !screenings)
+      return [];
 
     const halls = new Map();
 
     screenings.forEach((screening) => {
       if (
         new Date(screening.startTime).toDateString() === selectedDate &&
-        screening.theatreId._id === selectedTheatreId &&
+        screening.theatreId === selectedTheatreId &&
         formatTime(screening.startTime) === selectedTime
       ) {
-        halls.set(screening.hallId._id, screening.hallId);
+        halls.set(screening.hallId, screening.hallId);
       }
     });
 
@@ -330,7 +360,9 @@ export default function MovieDetails() {
   const getSelectedScreeningDetails = () => {
     if (!selectedScreeningId || !screenings) return null;
 
-    return screenings.find((screening) => screening._id === selectedScreeningId);
+    return screenings.find(
+      (screening) => screening._id === selectedScreeningId
+    );
   };
 
   const isLoading = isMovieLoading || isScreeningsLoading;
@@ -420,7 +452,14 @@ export default function MovieDetails() {
           <div>
             <h2 className="text-xl font-semibold mb-4">Description</h2>
             <p className="text-muted-foreground">
-              {movie.description || "No description available."}
+              <p
+                className="text-muted-foreground"
+                dangerouslySetInnerHTML={{
+                  __html: DOMPurify.sanitize(
+                    movie.description || "No description available."
+                  ),
+                }}
+              ></p>
             </p>
 
             <div className="mt-8">
@@ -563,9 +602,20 @@ export default function MovieDetails() {
                   <div className="text-muted-foreground">Time:</div>
                   <div>{formatTime(selectedScreening!.startTime)}</div>
                   <div className="text-muted-foreground">Cinema:</div>
-                  <div>{selectedScreening!.theatreId.name}</div>
+                  <div className="text-muted-foreground">Cinema:</div>
+                  <div>
+                    {availableTheatres.find(
+                      (t) => t._id === selectedScreening!.theatreId
+                    )?.name || "Unknown"}
+                  </div>
+
                   <div className="text-muted-foreground">Hall:</div>
-                  <div>{selectedScreening!.hallId.name}</div>
+                  <div>
+                    {availableHalls.find(
+                      (h) => h._id === selectedScreening!.hallId
+                    )?.name || "Unknown"}
+                  </div>
+
                   <div className="text-muted-foreground">Price:</div>
                   <div>₹{selectedScreening!.finalPrice.toFixed(2)}</div>
                 </div>
@@ -586,7 +636,9 @@ export default function MovieDetails() {
 
           <div className="space-y-8">
             <div>
-              <h3 className="text-sm text-muted-foreground mb-2">Released Year</h3>
+              <h3 className="text-sm text-muted-foreground mb-2">
+                Released Year
+              </h3>
               <p>{new Date(movie.releaseDate).getFullYear() || "N/A"}</p>
             </div>
             <div>

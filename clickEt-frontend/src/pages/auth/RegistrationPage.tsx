@@ -29,6 +29,23 @@ import { Link } from "react-router-dom";
 
 import { useRegister } from "@/api/authApi";
 
+const passwordRequirements = [
+  { label: "At least 8 characters", test: (pw: string) => pw.length >= 8 },
+  {
+    label: "At least 1 uppercase letter",
+    test: (pw: string) => /[A-Z]/.test(pw),
+  },
+  {
+    label: "At least 1 lowercase letter",
+    test: (pw: string) => /[a-z]/.test(pw),
+  },
+  { label: "At least 1 number", test: (pw: string) => /\d/.test(pw) },
+  {
+    label: "At least 1 special character (!@#$%^&*)",
+    test: (pw: string) => /[!@#$%^&*]/.test(pw),
+  },
+];
+
 const RegistrationPage = () => {
   const [passwordStrength, setPasswordStrength] = React.useState<number>(0);
   const registerMutation = useRegister();
@@ -171,6 +188,26 @@ const RegistrationPage = () => {
                           style={{ width: `${(passwordStrength + 1) * 20}%` }}
                         />
                       </div>
+                      {/* Password requirements checklist */}
+                      <ul className="mt-2 mb-1 text-xs space-y-1">
+                        {passwordRequirements.map((req) => (
+                          <li
+                            key={req.label}
+                            className="flex items-center gap-2"
+                          >
+                            <span
+                              className={
+                                req.test(field.value)
+                                  ? "text-green-600 font-semibold"
+                                  : "text-gray-400"
+                              }
+                            >
+                              {req.test(field.value) ? "✓" : "✗"}
+                            </span>
+                            <span>{req.label}</span>
+                          </li>
+                        ))}
+                      </ul>
                       <FormMessage />
                     </FormItem>
                   )}

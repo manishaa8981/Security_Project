@@ -329,11 +329,24 @@
 
 // export default MovieForm;
 
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/shadcn/button";
-import { Input } from "@/components/shadcn/input";
 import { Calendar } from "@/components/shadcn/calendar";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/shadcn/card";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/shadcn/form";
+import { Input } from "@/components/shadcn/input";
 import {
   Popover,
   PopoverContent,
@@ -346,36 +359,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/shadcn/select";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/shadcn/form";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/shadcn/card";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
 
-import { format } from "date-fns";
-import {
-  CalendarIcon,
-  Film,
-  Play,
-  ImageIcon,
-  Clock,
-  Globe,
-} from "lucide-react";
+import { useAddMovie } from "@/api/movieApi";
 import {
   MovieFormValues,
   movieSchema,
 } from "@/lib/formSchemas/movieFormSchema";
-import { useAddMovie } from "@/api/movieApi";
+import { format } from "date-fns";
+import {
+  CalendarIcon,
+  Clock,
+  Film,
+  Globe,
+  ImageIcon,
+  Play,
+} from "lucide-react";
 
 const MovieForm = () => {
   const movieMutation = useAddMovie();

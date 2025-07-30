@@ -4,6 +4,7 @@ export interface IUser {
   email: string;
   profile_URL: string;
   role: string;
+  loginTimestamps?: Date[];
 }
 
 export enum ERoles {

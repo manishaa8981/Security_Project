@@ -1,14 +1,22 @@
-import { axiosInstance } from "@/utils/axiosInstance";
 import {
   LoginCredentials,
   RegistrationCredentials,
   ResetCredentials,
 } from "@/interfaces/auth/IAuthCredentials";
+import { axiosInstance } from "@/utils/axiosInstance";
 
 import {
   ImageUploadRequest,
   ImageUploadResponse,
 } from "@/interfaces/auth/IImage";
+
+// Utility to fetch CSRF token
+export async function getCsrfToken() {
+  const { data } = await axiosInstance.get("/api/v1/csrf-token", {
+    withCredentials: true,
+  });
+  return data.csrfToken;
+}
 
 export async function loginUser(credentials: LoginCredentials) {
   const { data } = await axiosInstance.post("/auth/login", credentials);
@@ -60,4 +68,9 @@ export const uploadProfileImage = async ({
 export async function sendLogoutRequest() {
   const { data } = await axiosInstance.post("/auth/logout/");
   return data;
+}
+
+export async function fetchAllUsers() {
+  const { data } = await axiosInstance.get("/auth/list-all-users");
+  return data.users;
 }

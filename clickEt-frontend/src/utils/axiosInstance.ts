@@ -2,7 +2,7 @@
 // import { useAuth } from "@/hooks/useAuth";
 // import axios from "axios";
 
-// const baseURL = "http://localhost:5000/api/v1";
+// const baseURL = "https://localhost:5000/api/v1";
 
 // export const axiosInstance = axios.create({
 //   baseURL,
@@ -41,7 +41,7 @@
 import { useAuth } from "@/hooks/useAuth";
 import axios from "axios";
 
-const baseURL = "http://localhost:5000/api/v1";
+const baseURL = "https://localhost:5000/api/v1";
 
 export const axiosInstance = axios.create({
   baseURL,

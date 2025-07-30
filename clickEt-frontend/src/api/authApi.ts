@@ -5,11 +5,11 @@ import {
   registerUser,
   resetPassword,
   sendLogoutRequest,
-  sendResetEmail,
+  // sendResetEmail,
   uploadProfileImage,
 } from "@/service/authService";
-import axios from "axios";
 import { useMutation } from "@tanstack/react-query";
+import axios from "axios";
 import { toast } from "sonner";
 
 export const useLogin = () => {
@@ -17,7 +17,7 @@ export const useLogin = () => {
     mutationFn: loginUser,
     onSuccess: () => {
       toast.success("Login successful", {
-        className: "text-white border-success", 
+        className: "text-white border-success",
       });
 
       setTimeout(() => {
@@ -26,27 +26,6 @@ export const useLogin = () => {
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.message || "Login failed", {
-        className: "bg-error text-white border-error", 
-      });
-    },
-  });
-};
-
-export const useTOTPVerify = () => {
-  return useMutation({
-    mutationFn: async ({ userId, token }: { userId: string; token: string }) => {
-      return await instance.post("/mfa/totp/verify", { userId, token });
-    },
-    onSuccess: () => {
-      toast.success("TOTP Verified. Redirecting...", {
-        className: "text-white border-success",
-      });
-      setTimeout(() => {
-        window.location.href = "/";
-      }, 1500);
-    },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.message || "TOTP Verification Failed", {
         className: "bg-error text-white border-error",
       });
     },
@@ -99,6 +78,40 @@ export const usePasswordReset = () => {
   });
 };
 
+export const sendResetEmail = async (data: { email: string }) => {
+  const response = await instance.post("/otp/send", data);
+  return response.data;
+};
+
+// export const useVerifyOTP = () => {
+//   return useMutation({
+//     mutationFn: (data: { email: string; otp: string }) =>
+//       instance.post("/otp/verify", data),
+//     onSuccess: () => {
+//       toast.success("OTP Verified. Proceed to reset password.");
+//       setTimeout(() => {
+//         window.location.href = "/auth/reset-password"; 
+//       }, 1000);
+//     },
+//     onError: (error: any) => {
+//       toast.error(error.response?.data?.message || "OTP verification failed");
+//     },
+//   });
+// };
+export const useVerifyOTP = () => {
+  return useMutation({
+    mutationFn: (data: { email: string; otp: string }) =>
+      instance.post("/otp/verify", data).then((res) => res.data), // ✅ FIX: extract data
+    onSuccess: () => {
+      toast.success("OTP Verified. Proceed to reset password.");
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || "OTP verification failed");
+    },
+  });
+};
+
+
 export const useProfileImageUpload = () => {
   return useMutation({
     mutationFn: (request: ImageUploadRequest) => uploadProfileImage(request),
@@ -136,9 +149,8 @@ export const useLogout = () => {
   });
 };
 
-
 const instance = axios.create({
-  baseURL: "http://localhost:5000/api/v1",
+  baseURL: "https://localhost:5000/api/v1",
   withCredentials: true,
 });
 
