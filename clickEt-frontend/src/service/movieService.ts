@@ -1,9 +1,9 @@
 // src/service/movieService.ts
-import { axiosInstance } from "@/utils/axiosInstance";
-import { MovieFormValues } from "@/lib/formSchemas/movieFormSchema";
-import { format } from "date-fns";
-import { decodeHTMLEntities } from "@/utils/htmlDecoder";
 import { Movie } from "@/interfaces/IMovie";
+import { MovieFormValues } from "@/lib/formSchemas/movieFormSchema";
+import { axiosInstance } from "@/utils/axiosInstance";
+import { decodeHTMLEntities } from "@/utils/htmlDecoder";
+import { format } from "date-fns";
 
 export const fetchAllMoviesbyStatus = async (
   variant: string
@@ -57,7 +57,6 @@ export async function addMovie(credentials: MovieFormValues) {
   const { data } = await axiosInstance.post("/movie/add", payload);
   return data;
 }
-
 
 export async function fetchMovieBySlug(slug: string) {
   try {

@@ -21,9 +21,9 @@ const resetSchema = z
     password: z
       .string()
       .min(8, "Password must be at least 8 characters")
-      .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
-      .regex(/[a-z]/, "Password must contain at least one lowercase letter")
-      .regex(/[0-9]/, "Password must contain at least one number"),
+      .regex(/[A-Z]/, "Must contain at least one uppercase letter")
+      .regex(/[a-z]/, "Must contain at least one lowercase letter")
+      .regex(/[0-9]/, "Must contain at least one number"),
     confirmPassword: z.string(),
   })
   .refine((data) => data.password === data.confirmPassword, {
@@ -44,6 +44,7 @@ const ResetPasswordPage = () => {
       confirmPassword: "",
     },
   });
+
   const resetMutation = usePasswordReset();
   const onSubmit = (data: z.infer<typeof resetSchema>) => {
     const payload = {
@@ -60,12 +61,13 @@ const ResetPasswordPage = () => {
           <CardHeader className="flex justify-between items-center p-4">
             <h2 className="text-2xl font-semibold">Reset Password</h2>
           </CardHeader>
-          <CardContent className="w-full flex flex-col gap-3 ">
+          <CardContent className="w-full flex flex-col gap-3">
             <Form {...form}>
               <form
                 onSubmit={form.handleSubmit(onSubmit)}
                 className="space-y-4"
               >
+                {/* Password Field */}
                 <FormField
                   control={form.control}
                   name="password"
@@ -74,7 +76,7 @@ const ResetPasswordPage = () => {
                       <div className="relative">
                         <Input
                           type={showPassword ? "text" : "password"}
-                          placeholder="Password"
+                          placeholder="New Password"
                           {...field}
                         />
                         <Button
@@ -82,11 +84,9 @@ const ResetPasswordPage = () => {
                           variant="ghost"
                           size="sm"
                           className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                          onClick={
-                            () => setShowConfirmPassword(!showConfirmPassword) // ✅ fix this
-                          }
+                          onClick={() => setShowPassword(!showPassword)}
                         >
-                          {showConfirmPassword ? ( // ✅ use this, not showPassword
+                          {showPassword ? (
                             <EyeOff className="h-4 w-4 text-muted-foreground" />
                           ) : (
                             <Eye className="h-4 w-4 text-muted-foreground" />
@@ -97,6 +97,8 @@ const ResetPasswordPage = () => {
                     </FormItem>
                   )}
                 />
+
+                {/* Confirm Password Field */}
                 <FormField
                   control={form.control}
                   name="confirmPassword"
@@ -117,7 +119,7 @@ const ResetPasswordPage = () => {
                             setShowConfirmPassword(!showConfirmPassword)
                           }
                         >
-                          {showPassword ? (
+                          {showConfirmPassword ? (
                             <EyeOff className="h-4 w-4 text-muted-foreground" />
                           ) : (
                             <Eye className="h-4 w-4 text-muted-foreground" />
@@ -129,9 +131,10 @@ const ResetPasswordPage = () => {
                   )}
                 />
 
+                {/* Submit Button */}
                 <Button type="submit" disabled={resetMutation.isPending}>
                   {resetMutation.isPending
-                    ? "Resetting Password"
+                    ? "Resetting Password..."
                     : "Reset Password"}
                 </Button>
               </form>

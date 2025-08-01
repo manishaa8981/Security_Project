@@ -100,22 +100,25 @@ const userSchema = new mongoose.Schema(
 userSchema.pre("save", async function (next) {
   if (!this.isModified("password")) return next();
 
-  if (!this.password) {
-    return next(); // ✅ Skip if password is not being changed
-  }
-
-  const salt = await bcrypt.genSalt(10);
-  const hashed = await bcrypt.hash(this.password, salt);
-
-  // Only save password history if not a new user
+  // Fetch the current user from the DB to get their hashed password
   if (!this.isNew) {
-    if (this.password_history.length >= 3) {
-      this.password_history.shift();
+    const currentUser = await mongoose.models.users
+      .findById(this._id)
+      .select("password password_history");
+
+    if (currentUser && currentUser.password) {
+      // Maintain last 3 password hashes
+      const updatedHistory = [
+        ...(currentUser.password_history || []),
+        currentUser.password,
+      ];
+      this.password_history = updatedHistory.slice(-3); // keep last 3
     }
-    this.password_history.push(this.password); // Save old before replacing
   }
 
-  this.password = hashed;
+  // Hash the new password
+  const salt = await bcrypt.genSalt(10);
+  this.password = await bcrypt.hash(this.password, salt);
   this.password_last_changed = new Date();
 
   next();

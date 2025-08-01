@@ -1,5 +1,8 @@
 // src/controller/authController.js
 import axios from "axios";
+import bcrypt from "bcrypt";
+import crypto from "crypto";
+
 import User from "../models/userModel.js";
 import { hashCrypto, setTokenCookie } from "../utils/cookieUtil.js";
 import {
@@ -13,8 +16,6 @@ import {
 } from "../utils/imageUtils/cloudinaryUtils.js";
 import { validatePasswordPolicy } from "../utils/securityUtils/validatePassword.js";
 import { getUserIdFromToken, isValidObjectId } from "../utils/tokenUtils.js";
-import crypto from "crypto";
-
 
 export async function initRegistration(request, response) {
   const registrationCredentials = request.body;
@@ -269,18 +270,29 @@ export const resetPassword = async (req, res) => {
       return res.status(400).json({ message: "Token is required" });
     }
 
-    // Hash the token before lookup
     const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
 
     const user = await User.findOne({
       password_reset_Token: hashedToken,
-      password_reset_expiry: { $gt: Date.now() }, // Not expired
+      password_reset_expiry: { $gt: Date.now() },
     });
 
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      return res.status(404).json({ message: "Invalid or expired token" });
     }
 
+    // ✅ CHECK IF PASSWORD WAS REUSED
+    const isReused = user.password_history.some((oldHash) =>
+      bcrypt.compareSync(password, oldHash)
+    );
+
+    if (isReused) {
+      return res.status(400).json({
+        message: "You cannot reuse a recent password. Please choose a new one.",
+      });
+    }
+
+    // ✅ PROCEED TO RESET PASSWORD
     user.password = password;
     user.password_reset_Token = undefined;
     user.password_reset_expiry = undefined;
@@ -293,6 +305,7 @@ export const resetPassword = async (req, res) => {
     return res.status(500).json({ message: "Internal Server Error" });
   }
 };
+
 export async function initAuthStatus(request, response) {
   try {
     const token = request.cookies.access_token;
