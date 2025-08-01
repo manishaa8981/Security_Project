@@ -4,7 +4,7 @@ import SeatBooking from "@/components/pageComponents/booking/SeatBooking";
 import { Button } from "@/components/shadcn/button";
 import { MovieDetailsSkeleton } from "@/components/skeletons/movie";
 import { decodeHTMLEntities } from "@/utils/htmlDecoder";
-import * as DOMPurify from "dompurify";
+import DOMPurify from "dompurify";
 import { AnimatePresence, motion } from "framer-motion";
 import { ChevronDown, Play, Volume2, VolumeX } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -40,9 +40,11 @@ export default function MovieDetails() {
   const [isPlayerReady, setIsPlayerReady] = useState(false);
   const hasInteracted = useRef<boolean>(false);
 
-  const { data: movie, isLoading: isMovieLoading } = useFetchMovieBySlug(
-    slug || ""
-  );
+  const {
+    data: movie,
+    isLoading: isMovieLoading,
+    error: movieError,
+  } = useFetchMovieBySlug(slug || "");
   const { data: screenings, isLoading: isScreeningsLoading } =
     useFetchScreeningsByMovie(movie?._id || "");
 
@@ -371,8 +373,21 @@ export default function MovieDetails() {
     return <MovieDetailsSkeleton />;
   }
 
+  if (movieError) {
+    console.error("Error fetching movie details:", movieError);
+    return (
+      <div className="text-center text-red-500">
+        Error loading movie details. Please try again later.
+      </div>
+    );
+  }
+
   if (!movie) {
-    return <div className="text-center text-white">Movie not found</div>;
+    return (
+      <div className="text-center text-white">
+        Movie not found. Please check the URL or try again later.
+      </div>
+    );
   }
 
   const uniqueDates = getUniqueDates();
@@ -419,8 +434,16 @@ export default function MovieDetails() {
               {movie.name || "Unknown Movie"}
             </motion.h1>
             <div className="flex gap-4 mt-8">
-              <Button variant="default" size="lg">
-                Take a seat
+              <Button
+                variant="default"
+                size="lg"
+                onClick={() => {
+                  setShowSeats(true);
+                  document.getElementById("booking-section")?.scrollIntoView({ behavior: "smooth" });
+                }}
+                disabled={!selectedScreeningId}
+              >
+                {selectedScreeningId ? "Take a seat" : "Select a Screening"}
               </Button>
               <Button
                 variant="outline"
