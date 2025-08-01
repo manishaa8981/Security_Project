@@ -1,7 +1,7 @@
-import { useState, useRef, DragEvent, ChangeEvent } from "react";
 import { Button } from "@/components/shadcn/button";
-import { Upload, X } from "lucide-react";
 import { ImageFile } from "@/interfaces/auth/IImage";
+import { Upload, X } from "lucide-react";
+import { ChangeEvent, DragEvent, useRef, useState } from "react";
 
 interface ImageUploaderProps {
   uploadFn: (params: { image: ImageFile; currentImageUrl?: string }) => void;
@@ -30,6 +30,11 @@ const ImageUploader = ({
     setDragActive(e.type === "dragenter" || e.type === "dragover");
   };
 
+  const isValidImageType = (file: File) => {
+    const validTypes = ["image/jpeg", "image/png", "image/webp"];
+    return validTypes.includes(file.type);
+  };
+
   // Handle drop events
   const handleDrop = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -37,13 +42,25 @@ const ImageUploader = ({
     setDragActive(false);
 
     const file = e.dataTransfer.files[0];
-    if (file?.type.startsWith("image/")) setImage(file);
+    if (file) {
+      if (isValidImageType(file)) {
+        setImage(file);
+      } else {
+        alert("Only JPEG, PNG, or WEBP images are allowed.");
+      }
+    }
   };
 
-  // Handle file input change
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file?.type.startsWith("image/")) setImage(file);
+    if (file) {
+      if (isValidImageType(file)) {
+        setImage(file);
+      } else {
+        alert("Only JPEG, PNG, or WEBP images are allowed.");
+        if (inputRef.current) inputRef.current.value = "";
+      }
+    }
   };
 
   // Handle image upload
